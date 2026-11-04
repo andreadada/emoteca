@@ -5,13 +5,14 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <meta name="theme-color" content="#111111" />
   <meta name="description" content="Emoteca: esplora il cinema e costruisci la tua libreria personale di film, anime e serie." />
-  <title>Emoteca — La tua libreria di cinema</title>
+  <title>Emoteca — Film, serie e liste personali</title>
   <link rel="icon" type="image/svg+xml" href="assets/favicon.svg" />
-  <link rel="stylesheet" href="styles-cinema.css?v=20261104-globaltags" />
+  <link rel="stylesheet" href="styles-cinema.css?v=20261104-multilists" />
   <script src="js/data.js" defer></script>
   <script src="js/db.js" defer></script>
   <script src="js/catalog-identity.js?v=20261104-seedlink" defer></script>
-  <script src="js/app.js?v=20261104-libraryfilters" defer></script>
+  <script src="js/lists.js?v=20261104-multilists" defer></script>
+  <script src="js/app.js?v=20261104-multilists" defer></script>
   <script src="js/remote-catalog.js?v=20261104-globaltags" defer></script>
 </head>
 <body>
@@ -51,7 +52,7 @@
         <nav class="site-nav" aria-label="Navigazione principale">
           <button class="nav-link active" type="button" data-view="discover" aria-current="page">In evidenza</button>
           <button class="nav-link" type="button" data-view="explore">Tutti i film</button>
-          <button class="nav-link" type="button" data-view="all">La mia libreria <span id="count-all" class="nav-count"></span></button>
+          <button class="nav-link" type="button" data-view="all">Le mie liste <span id="count-all" class="nav-count"></span></button>
           <button class="nav-link" type="button" data-view="watchlist">Da guardare <span id="count-watchlist" class="nav-count"></span></button>
           <button class="nav-link" type="button" data-view="watched">Visti <span id="count-watched" class="nav-count"></span></button>
           <button class="nav-link" type="button" data-view="favorites">Preferiti <span id="count-favorites" class="nav-count"></span></button>
@@ -95,11 +96,25 @@
           <div class="collection-heading">
             <div class="collection-heading-copy">
               <p class="section-index" id="current-view-name">La tua selezione</p>
-              <h2 id="section-title">La libreria</h2>
-              <p id="section-caption">Tutti i film che hai scelto di conservare.</p>
+              <h2 id="section-title">La mia lista</h2>
+              <p id="section-caption">Organizza i titoli nelle tue raccolte personali.</p>
             </div>
             <div class="collection-meta"><span id="library-meta"></span><span id="results-count" aria-live="polite"></span></div>
           </div>
+
+          <section class="personal-lists" id="personal-lists" aria-label="Le tue liste" hidden>
+            <div class="personal-lists-topline">
+              <span class="list-section-label">Le tue raccolte</span>
+              <button type="button" class="new-list-button" data-action="create-list">
+                <svg aria-hidden="true"><use href="#i-plus"/></svg> Nuova lista
+              </button>
+            </div>
+            <div class="personal-lists-nav" id="personal-list-tabs" role="group" aria-label="Scegli una lista"></div>
+            <div class="personal-list-management" id="personal-list-management" hidden>
+              <button type="button" data-action="rename-list">Rinomina lista</button>
+              <button type="button" data-action="delete-list">Elimina lista</button>
+            </div>
+          </section>
 
           <div class="library-toolbar">
             <div class="type-tabs" id="type-filters" role="group" aria-label="Filtra per formato">
@@ -268,6 +283,25 @@
       </footer>
     </main>
   </div>
+
+  <dialog class="modal list-modal" id="list-dialog" aria-label="Gestisci lista">
+    <form id="list-form" method="dialog">
+      <div class="modal-heading">
+        <div>
+          <div class="eyebrow small-eyebrow">Le tue raccolte</div>
+          <h2 id="list-dialog-title">Nuova lista</h2>
+        </div>
+        <button class="icon-btn" type="button" data-close="list-dialog" aria-label="Chiudi"><svg><use href="#i-close"/></svg></button>
+      </div>
+      <label class="list-name-label" for="list-name-input">Nome della lista</label>
+      <input id="list-name-input" name="list-name" maxlength="60" required autocomplete="off" placeholder="Ad esempio: Serata horror" />
+      <p class="list-dialog-note">Un film può appartenere a più liste. Note, voti e stato di visione rimangono sulla sua scheda personale.</p>
+      <div class="list-dialog-actions">
+        <button type="button" class="button quiet" data-close="list-dialog">Annulla</button>
+        <button type="submit" class="button primary" id="list-submit">Crea lista</button>
+      </div>
+    </form>
+  </dialog>
 
   <dialog class="modal edit-modal" id="edit-dialog" aria-label="Aggiungi o modifica titolo">
     <form id="film-form"><div class="modal-heading"><div><div class="eyebrow small-eyebrow">La tua libreria</div><h2 id="form-title">Aggiungi titolo</h2></div><button class="icon-btn" type="button" data-close="edit-dialog" aria-label="Chiudi"><svg><use href="#i-close"/></svg></button></div>
