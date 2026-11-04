@@ -394,6 +394,11 @@ function showDetail(id,push=true){
  $('#detail-screen').hidden=false;
  $('#film-page-title').textContent='Scheda di '+f.title;
  document.title=f.title+' — Emoteca';
+ const backdropUrl=safeUrl(f.backdrop);
+ const backdropMount=$('#detail-cinema-backdrop');
+ backdropMount.innerHTML=backdropUrl?
+   `<img class="detail-cinema-image" src="${esc(backdropUrl)}" alt="" loading="eager" referrerpolicy="no-referrer" onerror="this.remove()" />`:'';
+ backdropMount.classList.toggle('without-backdrop',!backdropUrl);
  const saved=Boolean(personal);
  const scoreRows=Object.entries(scoreNames).map(([key,name])=>`<div class="score-row"><span>${esc(name)}</span><div class="score-track"><div class="score-fill" style="width:${(f.scores?.[key]||0)*20}%"></div></div><span class="score-number">${f.scores?.[key]||0}/5</span></div>`).join('');
  const heroButtons=saved
@@ -407,7 +412,7 @@ function showDetail(id,push=true){
    </select>`:'';
  const journal=saved?`<section class="reaction-panel">
      <h3>Il tuo diario</h3>
-     <p>Registra la tua reazione, il voto e una nota. Questi dati restano privati in questo browser.</p>
+     <p>Registra la tua reazione, il voto e una nota. ${window.CatalogDB.isCloud()?'I dati sono privati nel tuo account.':'I dati restano privati in questo browser.'}</p>
      <fieldset class="reaction-fieldset">
        <legend>Come ti ha lasciato?</legend>
        <div class="reaction-buttons">${Object.entries(reactNames).map(([value,label])=>`<button class="reaction-choice ${f.reaction===value&&(value!=='unseen'||f.status!=='watched')?'active':''}" type="button" data-reaction="${value}" data-id="${esc(f.id)}" aria-pressed="${f.reaction===value&&(value!=='unseen'||f.status!=='watched')?'true':'false'}">${esc(label)}</button>`).join('')}</div>
@@ -421,7 +426,7 @@ function showDetail(id,push=true){
       <button class="button primary" type="button" data-action="add-preview" ${Number.isInteger(f.year)?'':'disabled'}>Aggiungi alle mie liste</button>
       ${!Number.isInteger(f.year)?'<p class="link-notice">Questa fonte non indica l’anno: puoi aggiungere il titolo manualmente.</p>':''}
     </section>`;
- const image=f.backdrop&&safeUrl(f.backdrop)?`<img class="detail-backdrop" src="${esc(safeUrl(f.backdrop))}" alt="" loading="eager" referrerpolicy="no-referrer" onerror="this.remove()" />`:'';
+ const image=''; // full-width backdrop is mounted outside the detail card.
  $('#detail-content').innerHTML=`<div class="detail-hero">
   ${image}
   <div class="detail-poster" data-poster="${esc(f.id)}">${posterMarkup(f,true)}</div>
