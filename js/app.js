@@ -210,23 +210,97 @@ async function openExplore(term='',updateHistory=true){
  if(first)window.scrollTo({top:0,behavior:'auto'});
 }
 let writeQueue=Promise.resolve();
-function store(nextOrUpdater,notify,options={}){
- const operation=async()=>{
-   const next=typeof nextOrUpdater==='function'?nextOrUpdater(films):nextOrUpdater;
-   if(next===films)return;
-   await CatalogDB.write(next);
-   films=next;
-   if(options.background){
-     // Do not close the film page or overwrite a note being typed.
-     if(!$('#detail-screen').hidden){/* Refresh on the next navigation. */}
-     else if(view==='explore')window.EmotecaExplorer?.refreshSaved?.();
-     else render();
-   }else render();
-   if(notify)toast(notify);
- };
+function queuedWrite(operation){
  const pending=writeQueue.then(operation,operation);
  writeQueue=pending.catch(()=>{});
  return pending;
+}
+function refreshAfterWrite(background=false){
+ if(background&&!$('#detail-screen').hidden)return; // never overwrite a note being edited
+ if(view==='explore'&&background){window.EmotecaExplorer?.refreshSaved?.();return;}
+ if($('#detail-screen').hidden)render();
+}
+function store(nextOrUpdater,notify,options={}){
+ return queuedWrite(async()=>{
+   const next=typeof nextOrUpdater==='function'?nextOrUpdater(films):nextOrUpdater;
+   if(next===films)return;
+   const now=new Set(next.map(f=>f.id));
+   const previous=new Set(films.map(f=>f.id));
+   let nextLists=options.listSnapshot
+     ? window.EmotecaLists.normalize(options.listSnapshot,next)
+     : lists.map(l=>({...l,filmIds:l.filmIds.filter(id=>now.has(id))}));
+   if(!options.listSnapshot){
+     const newIds=next.filter(f=>!previous.has(f.id)).map(f=>f.id);
+     const destination=options.targetList&&nextLists.some(l=>l.id===options.targetList)
+       ?options.targetList:selectedListId;
+     if(newIds.length){
+       const listId=nextLists.some(l=>l.id===destination)?destination:'mia-lista';
+       for(const id of newIds)nextLists=window.EmotecaLists.setMembership(nextLists,listId,id,true);
+     }
+   }
+   await CatalogDB.writeSnapshot(next,nextLists);
+   films=next;
+   lists=nextLists;
+   refreshAfterWrite(options.background);
+   if(notify)toast(notify);
+ });
+}
+function persistLists(updater,notify,options={}){
+ return queuedWrite(async()=>{
+   const next=window.EmotecaLists.normalize(updater(lists),films);
+   await CatalogDB.writeLists(next);
+   lists=next;
+   if(options.background){
+     if(view==='explore')window.EmotecaExplorer?.refreshSaved?.();
+   } else if($('#detail-screen').hidden)render();
+   if(notify)toast(notify);
+ });
+}
+function changeListMembership(listId,filmId,include){
+ if(!films.some(f=>f.id===filmId)||!lists.some(l=>l.id===listId))
+   return Promise.reject(Error('Lista o film non disponibile.'));
+ return persistLists(old=>window.EmotecaLists.setMembership(old,listId,filmId,include),
+   include?'Titolo aggiunto alla lista.':'Titolo rimosso dalla lista.',{background:!$('#detail-screen').hidden})
+   .then(()=>{if(!$('#detail-screen').hidden)showDetail(filmId,false);else render();});
+}
+function openListDialog(mode='create'){
+ listDialogMode=mode;
+ $('#list-dialog-title').textContent=mode==='rename'?'Rinomina lista':'Nuova lista';
+ $('#list-submit').textContent=mode==='rename'?'Salva nome':'Crea lista';
+ $('#list-name-input').value=mode==='rename'?selectedList().name:'';
+ openDialog('list-dialog');
+ $('#list-name-input').focus();
+}
+async function submitListForm(event){
+ event.preventDefault();
+ const name=$('#list-name-input').value;
+ try{
+   if(listDialogMode==='rename'){
+     await persistLists(current=>window.EmotecaLists.rename(current,selectedListId,name),
+       'Nome lista aggiornato.');
+   }else{
+     let newId=null;
+     await persistLists(current=>{
+       const next=window.EmotecaLists.create(current,name);
+       newId=next[next.length-1].id;
+       return next;
+     },'Nuova lista creata.');
+     if(newId)selectedListId=newId;
+     setView('all');
+   }
+   closeDialog('list-dialog');
+   render();
+ }catch(error){toast(error.message,true);}
+}
+async function removeSelectedList(){
+ if(selectedListId==='mia-lista')return;
+ const current=selectedList();
+ if(!confirm('Eliminare la lista "'+current.name+'"? I film, i voti e le note non verranno cancellati.'))return;
+ try{
+   await persistLists(old=>window.EmotecaLists.remove(old,current.id),'Lista eliminata.');
+   selectedListId='mia-lista';
+   setView('all');
+ }catch(error){toast(error.message,true);}
 }
 async function attachCatalogRecord(localId,remote,seed=null){
  if(!/^tmdb-(movie|tv)-[1-9]\d*$/.test(remote?.id||''))return false;
