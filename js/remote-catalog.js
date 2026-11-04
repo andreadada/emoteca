@@ -230,6 +230,9 @@
   document.querySelectorAll('input[name="source-provider"]').forEach((radio) => {
     radio.addEventListener('change', () => {
       if (!radio.checked) return;
+      if (pending) pending.abort();
+      pending = null;
+      submitButton.disabled = false;
       provider = radio.value;
       tokenField.hidden = provider !== 'tmdb';
       results.innerHTML = '';
