@@ -215,9 +215,10 @@
   document.addEventListener('click', (event) => {
     const open = event.target.closest('[data-action="open-source"]');
     if (open) {
-      if (!dialog.open) dialog.showModal();
-      document.querySelector('#sidebar').classList.remove('open');
-      document.querySelector('#mobile-overlay').classList.remove('open');
+      if (!dialog.open) {
+        dialog.showModal();
+        document.querySelector('#source-query').focus({ preventScroll: true });
+      }
     }
     const add = event.target.closest('[data-source-add]');
     if (add && !add.disabled) importItem(Number(add.dataset.sourceAdd), add);

@@ -43,32 +43,11 @@ Il pulsante **Esplora film** avvia ricerche on-demand presso un provider esterno
 - Le schede iniziali e i backup restano compatibili con il formato storico `afterframe-catalog` e i database IndexedDB `afterframe-catalog-v1`, intenzionalmente non rinominati per evitare perdita di dati.
 - Il limite di import JSON (2 MB) e i limiti per operazioni batch restano invariati.
 
-## Design system — Emoteca / cinema editoriale
+## Interfaccia aggiornata (UX v2)
 
-**Fonti di metodo**: [Anthropic / frontend-design](https://github.com/anthropics/skills/tree/main/skills/frontend-design), [Vercel / web-design-guidelines](https://github.com/vercel-labs/agent-skills/tree/main/skills/web-design-guidelines), [UI/UX Pro Max](https://github.com/nextlevelbuilder/ui-ux-pro-max-skill). Le indicazioni sono state lette e applicate ai file sorgenti, non copiate come dipendenze runtime.
+La grafica descritta nella prima iterazione è stata sostituita integralmente dalla nuova architettura "cinema-first": non sono più presenti sidebar, card statistiche, hero con slogan o fogli CSS sovrapposti. La nuova interfaccia è documentata in [UX-REDESIGN-V2.md](UX-REDESIGN-V2.md).
 
-### Direzione
-
-Un archivio cinematografico che usa il linguaggio visivo di una videoteca d'autore, non di una dashboard SaaS. Lo schermo è una parete scura; le locandine sono la parte più luminosa; l'interfaccia non competere con i contenuti.
-
-### Token
-
-- `#101114` — ink, base.
-- `#141518` — sidebar.
-- `#18191d` — superfici.
-- `#34353a` — separatori.
-- `#f5f1ea` — titoli e testo primario.
-- `#d4b889` — ottone, enfasi interattive.
-- **Instrument Serif** per i titoli editoriali; **DM Sans** per navigazione, descrizioni, metadati, forms.
-
-### Scelte consapevoli
-
-1. Hero asimmetrico con immagine promozionale già presente, una sola call to action principale e una secondaria.
-2. Statistiche come un'unica fascia separata da righe, non quattro card da analytics.
-3. Card centrate sulle immagini 2:3; titolo/anno sotto, senza percentuali fittizie o badges invadenti.
-4. Niente glow viola/rosa, schemi casuali di gradienti, frasi indefinite o decorative uppercase ripetute.
-5. Stati focus visibili, attributi alt, dimensioni immagini definite, responsive e prefers-reduced-motion.
-6. Modal di ricerca editoriale con chiara distinzione fonti/licenze, status ed errore testuali.
+L'integrazione dei provider descritta sopra resta invariata.
 
 ## Miglioramenti da valutare dopo la PR
 

@@ -13,7 +13,7 @@ test('All browser scripts parse as JavaScript', () => {
 
 test('App loads the explorer and cinematic stylesheet after core assets', () => {
   const html = read('index.html');
-  for (const file of ['styles.css', 'styles-premium.css', 'js/data.js', 'js/db.js', 'js/app.js', 'js/remote-catalog.js']) {
+  for (const file of ['styles-cinema.css', 'js/data.js', 'js/db.js', 'js/app.js', 'js/remote-catalog.js']) {
     assert.ok(existsSync(new URL('../' + file, import.meta.url)), 'Missing ' + file);
     assert.ok(html.includes(file), 'HTML does not include ' + file);
   }
@@ -25,6 +25,43 @@ test('App loads the explorer and cinematic stylesheet after core assets', () => 
   assert.ok(html.includes('This product uses the TMDB API but is not endorsed or certified by TMDB.'));
   assert.ok(html.includes('blue_square_2-'), 'TMDB attribution must contain approved logo');
 
+});
+
+test('Semantic architecture replaces the old dashboard UI', () => {
+  const html = read('index.html');
+  const app = read('js/app.js');
+  const css = read('styles-cinema.css');
+  for (const id of ['page-title', 'hero', 'reel-section', 'editorial-rail',
+    'collection-section', 'section-title', 'film-grid', 'library-meta',
+    'results-count', 'type-filters', 'sort-filter', 'tag-filter']) {
+    assert.ok(html.includes('id="' + id + '"'), 'Missing redesigned view element ' + id);
+  }
+  assert.ok(html.includes('class="site-nav"'), 'Navigation should be horizontal');
+  assert.ok(!html.includes('class="sidebar"'), 'Removed sidebar must not return');
+  assert.ok(!html.includes('class="stats"'), 'Removed metrics grid must not return');
+  assert.ok(!html.includes('styles-premium.css'), 'Old override CSS must no longer be loaded');
+  assert.ok(app.includes('function renderFeatured()'), 'Featured movie is data-driven');
+  assert.ok(app.includes('function renderRail()'), 'Curated reel is data-driven');
+  assert.ok(app.includes('class="film-cover"'), 'New card architecture is in the renderer');
+  assert.ok(app.includes('class="detail-hero"'), 'Detail view must have its own hierarchy');
+  assert.ok(app.includes('aria-pressed'), 'Interactive filters and favorites announce selection');
+  assert.ok(css.includes('@media(prefers-reduced-motion:reduce)'));
+  assert.ok(css.includes('max-width:470px'));
+  assert.ok(!app.includes("$('#sidebar')"));
+  assert.ok(!read('js/remote-catalog.js').includes("querySelector('#sidebar')"));
+});
+
+test('Accessibility-sensitive controls remain available in the redesigned shell', () => {
+  const html = read('index.html');
+  assert.ok(html.includes('class="skip-link"'));
+  assert.ok(html.includes('id="search"'));
+  assert.ok(html.includes('data-action="open-source"'));
+  assert.ok(html.includes('data-action="json"'));
+  assert.ok(html.includes('data-action="add"'));
+  assert.ok(html.includes('aria-label="Navigazione principale"'));
+  for (const view of ['discover', 'all', 'watchlist', 'watched', 'favorites']) {
+    assert.ok(html.includes('data-view="' + view + '"'), view + ' view should be reachable');
+  }
 });
 
 test('Existing catalog validation supports source-imported films with unknown editorial scores', () => {
