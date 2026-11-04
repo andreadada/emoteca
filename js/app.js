@@ -142,7 +142,7 @@ function refreshThemeOptions(){
       options.map(tag=>`<button class="theme-tag" type="button" data-theme="${esc(tag)}" aria-pressed="false">${esc(tag.charAt(0).toLocaleUpperCase('it')+tag.slice(1))}</button>`).join('');
    themeListKey=key;
  }
- $('#theme-filters [data-theme]').forEach(button=>{
+ Array.from(document.querySelectorAll('#theme-filters [data-theme]')).forEach(button=>{
    const active=button.dataset.theme==='all'?selectedThemes.size===0:selectedThemes.has(button.dataset.theme);
    button.classList.toggle('active',active);
    button.setAttribute('aria-pressed',String(active));
