@@ -165,49 +165,74 @@ function streaming(f){const q=encodeURIComponent(f.title),search=encodeURICompon
  if(['anime','film-anime'].includes(f.type))base.push({name:'Crunchyroll',hint:'Cerca anime',url:`https://www.crunchyroll.com/search?q=${search}`});
  if(Array.isArray(f.links))for(const l of f.links){if(l&&safeUrl(l.url)&&l.name)base.unshift({name:l.name,hint:'Link personalizzato',url:l.url});}
  return base.map(l=>`<a class="watch-link" href="${esc(safeUrl(l.url))}" target="_blank" rel="noopener noreferrer"><span>${esc(l.name)} <small style="color:#88859a;font-weight:500">· ${esc(l.hint)}</small></span>${icon('external')}</a>`).join('');}
-function showDetail(id){
- const f=films.find(x=>x.id===id);if(!f)return;
+function showDetail(id,push=true){
+ const personal=films.find(x=>x.id===id);
+ const f=personal||(remoteSelection?.id===id?remoteSelection:null);
+ if(!f)return;
  detailId=id;
- const scoreRows=Object.entries(scoreNames).map(([key,name])=>`<div class="score-row"><span>${esc(name)}</span><div class="score-track"><div class="score-fill" style="width:${f.scores[key]*20}%"></div></div><span class="score-number">${f.scores[key]}/5</span></div>`).join('');
- $('#detail-content').innerHTML=`<div class="detail-hero">
-  <div class="detail-poster" data-poster="${esc(f.id)}">${posterMarkup(f)}</div>
-  <div class="detail-intro">
-    <div class="detail-headingline">${esc(typeNames[f.type])}<span aria-hidden="true">/</span>${esc(f.year)}${f.duration?`<span aria-hidden="true">/</span>${esc(f.duration)}`:''}</div>
-    <h2>${esc(f.title)}</h2>
-    <p class="detail-description">${esc(f.description||'Nessuna sinossi disponibile.')}</p>
-    <div class="detail-actions">
-      <button class="button primary" type="button" data-action="toggle-watched" data-id="${esc(f.id)}">${icon(f.status==='watched'?'check':'eye')}${esc(f.status==='watched'?'Già visto — segna da guardare':'Segna come visto')}</button>
-      <button class="button quiet" type="button" data-action="toggle-favorite-detail" data-id="${esc(f.id)}">${icon('heart')}${esc(f.favorite?'Rimuovi dai preferiti':'Aggiungi ai preferiti')}</button>
-    </div>
-    ${f.why?`<p class="detail-why">${esc(f.why)}</p>`:''}
-  </div>
-  <button class="tool-icon detail-close" type="button" data-close="detail-dialog" aria-label="Chiudi la scheda">${icon('close')}</button>
- </div>
- <div class="detail-body">
-   <section class="reaction-panel">
+ if(push){
+   detailBackView=view;
+   const url=new URL(location.href);
+   url.search='';url.hash='';
+   url.searchParams.set('film',id);
+   history.pushState({film:id,from:view},'',url.pathname+url.search);
+ }
+ document.querySelector('.page-body').hidden=true;
+ $('#explore-page').hidden=true;
+ $('#detail-screen').hidden=false;
+ $('#film-page-title').textContent='Scheda di '+f.title;
+ document.title=f.title+' — Emoteca';
+ const saved=Boolean(personal);
+ const scoreRows=Object.entries(scoreNames).map(([key,name])=>`<div class="score-row"><span>${esc(name)}</span><div class="score-track"><div class="score-fill" style="width:${(f.scores?.[key]||0)*20}%"></div></div><span class="score-number">${f.scores?.[key]||0}/5</span></div>`).join('');
+ const heroButtons=saved
+   ? `<button class="button primary" type="button" data-action="toggle-watched" data-id="${esc(f.id)}">${icon(f.status==='watched'?'check':'eye')}${esc(f.status==='watched'?'Segna da guardare':'Segna come visto')}</button>
+      <button class="button quiet" type="button" data-action="toggle-favorite-detail" data-id="${esc(f.id)}">${icon('heart')}${esc(f.favorite?'Rimuovi dai preferiti':'Aggiungi ai preferiti')}</button>`
+   : `<button class="button primary" type="button" data-action="add-preview" ${Number.isInteger(f.year)?'':'disabled'}>${icon('plus')} ${Number.isInteger(f.year)?'Aggiungi alla mia libreria':'Anno non disponibile'}</button>
+      <button class="button quiet" type="button" data-view="explore">Torna al catalogo</button>`;
+ const journal=saved?`<section class="reaction-panel">
      <h3>Il tuo diario</h3>
-     <p>Registra cosa hai visto e conserva una nota personale.</p>
+     <p>Una volta vista, questa storia rimane qui insieme ai tuoi ricordi.</p>
      <fieldset class="reaction-fieldset">
        <legend>Come ti ha lasciato?</legend>
        <div class="reaction-buttons">${Object.entries(reactNames).map(([value,label])=>`<button class="reaction-choice ${f.reaction===value?'active':''}" type="button" data-reaction="${value}" data-id="${esc(f.id)}" aria-pressed="${f.reaction===value?'true':'false'}">${esc(label)}</button>`).join('')}</div>
      </fieldset>
      <div class="rating-line"><label for="personal-rating">Il tuo voto</label><input id="personal-rating" type="range" min="0" max="10" step="1" value="${f.rating===null?0:f.rating}"><output id="personal-output">${f.rating===null?'—':f.rating+'/10'}</output></div>
-     <div class="note-field"><label for="personal-notes">Note private</label><textarea id="personal-notes" rows="4" maxlength="3000" placeholder="Scrivi qualcosa che vuoi ricordare…">${esc(f.notes)}</textarea></div>
+     <div class="note-field"><label for="personal-notes">Note private</label><textarea id="personal-notes" rows="6" maxlength="3000" placeholder="Scrivi quello che vuoi ricordare…">${esc(f.notes)}</textarea></div>
      <button class="button secondary save-personal" type="button" data-action="save-personal" data-id="${esc(f.id)}">${icon('check')} Salva voto e note</button>
-   </section>
+   </section>`:`<section class="reaction-panel">
+      <h3>Fallo tuo.</h3>
+      <p>Questo titolo proviene dal catalogo mondiale. Aggiungilo alla libreria per segnarlo come visto, conservarne il voto o scrivere note private.</p>
+      <button class="button primary" type="button" data-action="add-preview" ${Number.isInteger(f.year)?'':'disabled'}>Aggiungi alla libreria</button>
+      ${!Number.isInteger(f.year)?'<p class="link-notice">Questa fonte non indica l’anno: puoi aggiungere il titolo manualmente.</p>':''}
+    </section>`;
+ const image=f.backdrop&&safeUrl(f.backdrop)?`<img class="detail-backdrop" src="${esc(safeUrl(f.backdrop))}" alt="" loading="eager" referrerpolicy="no-referrer" onerror="this.remove()" />`:'';
+ $('#detail-content').innerHTML=`<div class="detail-hero">
+  ${image}
+  <div class="detail-poster" data-poster="${esc(f.id)}">${posterMarkup(f,true)}</div>
+  <div class="detail-intro">
+    <div class="detail-headingline"><span>${esc(typeNames[f.type]||'Film')}</span><span aria-hidden="true">/</span>${esc(f.year||'Anno non disponibile')}${f.duration?`<span aria-hidden="true">/</span>${esc(f.duration)}`:''}</div>
+    <h2>${esc(f.title)}</h2>
+    ${f.genre?`<p class="detail-genres">${esc(f.genre)}</p>`:''}
+    ${f.description?`<p class="detail-description">${esc(f.description)}</p>`:'<p class="detail-description">La fonte non fornisce una sinossi per questo titolo.</p>'}
+    <div class="detail-actions">${heroButtons}</div>
+    ${saved&&f.why?`<p class="detail-why">${esc(f.why)}</p>`:''}
+    ${!saved?`<p class="detail-origin">Scheda da ${esc(f.source||'catalogo esterno')}</p>`:''}
+  </div>
+ </div>
+ <div class="detail-body">
+   ${journal}
    <aside class="detail-aside">
      ${f.tags?.length?`<div class="detail-block"><h3>Temi</h3><div class="detail-tags">${f.tags.map(t=>`<span>${esc(t)}</span>`).join('')}</div></div>`:''}
      ${f.warnings?`<p class="detail-warnings">Avvertenze: ${esc(f.warnings)}</p>`:''}
-     ${Object.values(f.scores).some(n=>n>0)?`<details class="profile-details"><summary>Profilo editoriale del titolo</summary><div class="detail-scores">${scoreRows}</div><p class="link-notice">Stime editoriali, non voti del pubblico.</p></details>`:''}
-     <div class="detail-block"><h3>Dove cercarlo</h3><div class="watch-links">${streaming(f)}</div><p class="link-notice">I link aprono ricerche esterne, non indicano disponibilità verificata.</p></div>
+     ${saved&&Object.values(f.scores||{}).some(n=>n>0)?`<details class="profile-details"><summary>Profilo editoriale del titolo</summary><div class="detail-scores">${scoreRows}</div><p class="link-notice">Stime editoriali, non voti del pubblico.</p></details>`:''}
+     <div class="detail-block"><h3>Dove cercarlo</h3><div class="watch-links">${streaming(f)}</div>
+      <p class="link-notice">I collegamenti aprono ricerche esterne e non garantiscono la disponibilità in streaming.</p></div>
+     ${!saved&&f.sourceUrl&&safeUrl(f.sourceUrl)?`<a class="detail-source-link" target="_blank" rel="noopener noreferrer" href="${esc(safeUrl(f.sourceUrl))}">Apri la scheda su ${esc(f.source||'fonte esterna')} ${icon('external')}</a>`:''}
    </aside>
  </div>
- <div class="detail-bottom">
-   <button class="button secondary" type="button" data-action="edit" data-id="${esc(f.id)}">${icon('edit')} Modifica scheda</button>
-   <button class="button secondary danger" type="button" data-action="delete" data-id="${esc(f.id)}">${icon('trash')} Elimina</button>
- </div>`;
- openDialog('detail-dialog');
+ ${saved?`<div class="detail-bottom"><button class="button secondary" type="button" data-action="edit" data-id="${esc(f.id)}">${icon('edit')} Modifica scheda</button><button class="button secondary danger" type="button" data-action="delete" data-id="${esc(f.id)}">${icon('trash')} Elimina dalla libreria</button></div>`:''}`;
  observePosters();
+ window.scrollTo({top:0,behavior:'auto'});
 }
 function editSliders(scores){$('#edit-sliders').innerHTML=Object.entries(scoreNames).map(([key,label])=>`<div class="score-edit"><label for="score-${key}">${esc(label)}</label><input id="score-${key}" name="score-${key}" type="range" min="0" max="5" step="1" value="${scores[key]??0}"><output id="out-${key}">${scores[key]??0}/5</output></div>`).join('');}
 function slug(t){return normal(t).replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'').slice(0,75)||'nuovo-titolo';}
