@@ -269,7 +269,8 @@ await scenario('global theme toggle, Anime browsing and search reset', {width:14
     themes:document.querySelector('#global-themes').getBoundingClientRect().top,
     search:document.querySelector('#catalog-query').getBoundingClientRect().top
   }));
-  assert.ok(order.types<order.themes&&order.themes<order.search);
+  assert.ok(order.search<order.types&&order.types<order.themes,
+    'The search is first, then content type, then optional genre chips');
   await page.locator('#global-themes [data-global-theme="horror"]').click();
   await page.waitForFunction(()=>document.querySelector('#global-grid .card-name')?.textContent==='Horror di prova');
   assert.equal(await page.locator('#global-themes [data-global-theme="horror"]').getAttribute('aria-pressed'),'true');
@@ -368,6 +369,9 @@ await scenario('mobile library tag filters do not overflow', { width: 390, heigh
 
 await scenario('reframe visual hierarchy is usable from home to catalog, list and detail',
   {width:1440,height:900},async page=>{
+  const stylesheet=await page.request.get(origin+'/styles-reframe.css');
+  assert.equal(stylesheet.status(),200,'Production Docker image must serve the redesign CSS');
+  assert.match(await stylesheet.text(),/--ui-ground/);
   const shell=await page.evaluate(()=>{
     const el=document.querySelector('.site-header');
     const hero=document.querySelector('#hero').getBoundingClientRect();
