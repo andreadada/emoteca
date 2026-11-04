@@ -15,7 +15,7 @@ async function scenario(name, viewport, run) {
   try {
     await page.goto(origin, { waitUntil: 'domcontentloaded' });
     await page.locator('.film-card').first().waitFor();
-    await run(page);
+    await run(page, errors);
     assert.deepEqual(errors, [], name + ': unexpected JavaScript runtime errors');
     console.log('PASS ' + name);
   } catch (error) {
@@ -26,15 +26,16 @@ async function scenario(name, viewport, run) {
   }
 }
 
-await scenario('desktop feature + collection flows', { width: 1440, height: 900 }, async (page) => {
+await scenario('desktop feature + collection flows', { width: 1440, height: 900 }, async (page, errors) => {
   assert.equal(await page.locator('.sidebar').count(), 0, 'No dashboard sidebar');
   assert.ok((await page.locator('.film-card').count()) >= 20);
   assert.equal(await page.locator('.feature-title').textContent(), 'Warrior');
   assert.ok(await page.locator('#editorial-rail .film-card').count() >= 4);
   await page.screenshot({ path: 'ui-screenshots/desktop-home.png', fullPage: true });
 
+  await page.evaluate(()=>document.addEventListener('click',(e)=>{document.body.dataset.lastNavigation=e.target.closest('[data-view]')?.dataset.view||'none';},true));
   await page.locator('[data-view="all"].nav-link').click();
-  console.log('DEBUG desktop nav',await page.evaluate(()=>({hash:location.hash,active:[...document.querySelectorAll('.nav-link.active')].map(el=>el.dataset.view),section:document.querySelector('#section-title')?.textContent})));
+  console.log('DEBUG desktop nav',await page.evaluate(()=>({hash:location.hash,last:document.body.dataset.lastNavigation,active:[...document.querySelectorAll('.nav-link.active')].map(el=>el.dataset.view),section:document.querySelector('#section-title')?.textContent})),errors);
   assert.equal(await page.locator('#section-title').textContent(), 'La libreria');
   assert.equal(await page.locator('#hero').isVisible(), false);
   await page.screenshot({ path: 'ui-screenshots/desktop-library.png', fullPage: true });
@@ -63,7 +64,7 @@ await scenario('mobile navigation and readability', { width: 390, height: 844 },
   assert.ok(overflow <= 1, 'Mobile page overflows by ' + overflow + ' px');
   await page.screenshot({ path: 'ui-screenshots/mobile-home.png', fullPage: true });
   await page.locator('.nav-link[data-view="watchlist"]').click();
-  console.log('DEBUG mobile nav',await page.evaluate(()=>({hash:location.hash,active:[...document.querySelectorAll('.nav-link.active')].map(el=>el.dataset.view),section:document.querySelector('#section-title')?.textContent})),'errors',errors);
+  console.log('DEBUG mobile nav',await page.evaluate(()=>({hash:location.hash,active:[...document.querySelectorAll('.nav-link.active')].map(el=>el.dataset.view),section:document.querySelector('#section-title')?.textContent})),errors);
   assert.equal(await page.locator('#section-title').textContent(), 'Da guardare');
   assert.ok((await page.locator('#film-grid .film-card').count()) >= 1);
   await page.screenshot({ path: 'ui-screenshots/mobile-watchlist.png', fullPage: true });
