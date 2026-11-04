@@ -366,8 +366,10 @@ async function pumpPosters(){
     if(src){
      posterCache.set(id,src);posterFailed.delete(id);
      try{localStorage.setItem('afterframe-poster-cache',JSON.stringify(Object.fromEntries(posterCache)));}catch{}
-     $$('[data-open], [data-poster]').filter(node=>
-       node.dataset.open===id||node.dataset.poster===id).forEach(node=>{
+     // Only actual artwork slots may receive a cover. Generic [data-open]
+     // buttons (title, primary CTA) are navigation controls, not image wrappers.
+     $('.poster-wrap[data-open], .feature-poster[data-poster], .detail-poster[data-poster]')
+       .filter(node=>node.dataset.open===id||node.dataset.poster===id).forEach(node=>{
        let image=node.querySelector('.poster-image');
        if(!image){
         image=document.createElement('img');image.className='poster-image';
