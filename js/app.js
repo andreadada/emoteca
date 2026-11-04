@@ -179,7 +179,7 @@ function store(nextOrUpdater,notify,options={}){
  return pending;
 }
 async function attachCatalogRecord(localId,remote,seed=null){
- if(!/^tmdb-(movie|tv)-[1-9]\\d*$/.test(remote?.id||''))return false;
+ if(!/^tmdb-(movie|tv)-[1-9]\d*$/.test(remote?.id||''))return false;
  let updated=false;
  await store(current=>{
    const original=current.find(f=>f.id===localId);
@@ -338,7 +338,7 @@ function validateFilm(raw){validatePatch(raw);
  for(const k of ['genre','description','why','notes','poster','posterQuery','duration','country','warnings','catalogId','catalogSource','catalogTitle','backdrop'])if(typeof f[k]!=='string'||f[k].length>(k==='notes'?3000:k==='description'?900:400))throw Error(`Campo ${k} non valido o troppo lungo.`);
  if(f.poster&&!safeUrl(f.poster))throw Error('La copertina deve avere URL http o https.');
  if(f.backdrop&&!safeUrl(f.backdrop))throw Error('Lo sfondo deve avere URL http o https.');
- if(f.catalogId&&!/^(?:tmdb-(?:movie|tv)-[1-9]\\d*|wikidata-q[1-9]\\d*)$/.test(f.catalogId))throw Error('Identificativo catalogo non valido.');
+ if(f.catalogId&&!/^(?:tmdb-(?:movie|tv)-[1-9]\d*|wikidata-q[1-9]\d*)$/.test(f.catalogId))throw Error('Identificativo catalogo non valido.');
  if(f.catalogId&&window.EmotecaIdentity?.mediaOf(f)!==window.EmotecaIdentity?.mediaOf({id:f.catalogId,type:f.catalogId.startsWith('tmdb-tv-')?'serie':'film'})) {
    if(f.catalogId.startsWith('tmdb-'))throw Error('Il formato non corrisponde al catalogo.');
  }
