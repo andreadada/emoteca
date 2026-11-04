@@ -258,11 +258,11 @@ function importShape(input){
  if(input.id&&input.title)return {mode:'ops',operations:[{op:'upsert',film:input}]};
  throw Error('Formato non riconosciuto. Usa {operations:[...]}, {op:"update",...} o {films:[...]} per sostituzione completa.');
 }
-const ALLOWED=new Set(['id','title','year','type','genre','description','why','tags','scores','match','status','reaction','rating','favorite','notes','poster','posterQuery','links','duration','country','warnings','featured','createdAt','updatedAt']);
+const ALLOWED=new Set(['id','title','year','type','genre','description','why','tags','scores','match','status','reaction','rating','favorite','notes','poster','posterQuery','links','duration','country','warnings','featured','createdAt','updatedAt','catalogId','catalogSource','catalogTitle','backdrop']);
 function validPlainObject(o){return o&&typeof o==='object'&&!Array.isArray(o)&&Object.getPrototypeOf(o)===Object.prototype;}
 function validatePatch(obj){if(!validPlainObject(obj))throw Error('changes deve essere un oggetto.');for(const k of Object.keys(obj)){if(!ALLOWED.has(k))throw Error(`Campo non ammesso: ${k}`);if(k==='scores'){if(!validPlainObject(obj.scores))throw Error('scores deve essere un oggetto.');for(const s of Object.keys(obj.scores))if(!Object.hasOwn(scoreNames,s))throw Error('Score sconosciuto: '+s);}}}
 function validateFilm(raw){validatePatch(raw);
- const defaults={genre:'',description:'',why:'',tags:[],scores:{emotion:3,comedy:1,action:2,romance:1,tension:2},match:75,status:'watchlist',reaction:'unseen',rating:null,favorite:false,notes:'',poster:'',posterQuery:'',links:[],duration:'',country:'',warnings:'',featured:false};
+ const defaults={genre:'',description:'',why:'',tags:[],scores:{emotion:3,comedy:1,action:2,romance:1,tension:2},match:75,status:'watchlist',reaction:'unseen',rating:null,favorite:false,notes:'',poster:'',posterQuery:'',links:[],duration:'',country:'',warnings:'',featured:false,catalogId:'',catalogSource:'',catalogTitle:'',backdrop:''};
  const f={...defaults,...raw,scores:{...defaults.scores,...raw.scores}};
  if(typeof f.id!=='string'||!/^[a-z0-9][a-z0-9-]{0,89}$/.test(f.id))throw Error('ID non valido: solo lettere minuscole, numeri e trattini (max 90).');
  if(typeof f.title!=='string'||!f.title.trim()||f.title.length>180)throw Error('Il titolo è obbligatorio (max 180 caratteri).');
@@ -274,8 +274,13 @@ function validateFilm(raw){validatePatch(raw);
  if(!Object.hasOwn(reactNames,f.reaction))throw Error('reaction non valida.');
  if(f.rating!==null&&(!Number.isInteger(f.rating)||f.rating<0||f.rating>10))throw Error('rating deve essere null o un intero 0–10.');
  if(typeof f.favorite!=='boolean'||typeof f.featured!=='boolean')throw Error('favorite e featured devono essere booleani.');
- for(const k of ['genre','description','why','notes','poster','posterQuery','duration','country','warnings'])if(typeof f[k]!=='string'||f[k].length>(k==='notes'?3000:k==='description'?900:400))throw Error(`Campo ${k} non valido o troppo lungo.`);
+ for(const k of ['genre','description','why','notes','poster','posterQuery','duration','country','warnings','catalogId','catalogSource','catalogTitle','backdrop'])if(typeof f[k]!=='string'||f[k].length>(k==='notes'?3000:k==='description'?900:400))throw Error(`Campo ${k} non valido o troppo lungo.`);
  if(f.poster&&!safeUrl(f.poster))throw Error('La copertina deve avere URL http o https.');
+ if(f.backdrop&&!safeUrl(f.backdrop))throw Error('Lo sfondo deve avere URL http o https.');
+ if(f.catalogId&&!/^(?:tmdb-(?:movie|tv)-[1-9]\\d*|wikidata-q[1-9]\\d*)$/.test(f.catalogId))throw Error('Identificativo catalogo non valido.');
+ if(f.catalogId&&window.EmotecaIdentity?.mediaOf(f)!==window.EmotecaIdentity?.mediaOf({id:f.catalogId,type:f.catalogId.startsWith('tmdb-tv-')?'serie':'film'})) {
+   if(f.catalogId.startsWith('tmdb-'))throw Error('Il formato non corrisponde al catalogo.');
+ }
  if(!Array.isArray(f.tags)||f.tags.length>30||f.tags.some(t=>typeof t!=='string'||t.length>65))throw Error('tags deve essere una lista di massimo 30 stringhe (max 65 caratteri).');
  if(!Array.isArray(f.links)||f.links.length>20||f.links.some(l=>!validPlainObject(l)||typeof l.name!=='string'||l.name.length>80||!safeUrl(l.url)))throw Error('links deve essere una lista di {name, url:https://...}.');
  if(f.createdAt&&typeof f.createdAt!=='string'||f.updatedAt&&typeof f.updatedAt!=='string')throw Error('Date non valide.');
