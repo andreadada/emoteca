@@ -14,6 +14,7 @@
    if(!Array.isArray(raw)||!raw.length||raw.length>30)throw Error('Liste non valide (massimo 30).');
    const known=new Set(films.map(f=>f.id));
    const ids=new Set();
+   if(!raw.some(item=>item?.id===DEFAULT_ID))throw Error('La lista iniziale non è presente.');
    return raw.map(item=>{
      if(!own(item)||typeof item.id!=='string'||!idPattern.test(item.id)||ids.has(item.id))
        throw Error('Identificativo lista non valido o duplicato.');
@@ -38,7 +39,6 @@
    return [...lists,{id,name:clean,filmIds:[]}];
  }
  function rename(lists,id,name){
-   if(id===DEFAULT_ID)throw Error('La lista iniziale non può essere rinominata.');
    if(typeof name!=='string'||!name.trim()||name.trim().length>60)
      throw Error('Inserisci un nome valido (massimo 60 caratteri).');
    if(lists.some(l=>l.id!==id&&l.name.toLocaleLowerCase('it')===name.trim().toLocaleLowerCase('it')))
