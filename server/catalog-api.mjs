@@ -28,6 +28,54 @@ const acceptableQuery = (value) => {
 };
 const typeOf = (value) => value === 'tv' ? 'tv' : value === 'movie' ? 'movie' : null;
 
+// TMDB genre identifiers differ by medium. A missing TV genre means "not classified"
+// there, not permission to silently include unrelated mystery/fantasy shows.
+const GENRES = {
+  azione: { movie: [28], tv: [10759] },
+  avventura: { movie: [12], tv: [10759] },
+  animazione: { movie: [16], tv: [16] },
+  commedia: { movie: [35], tv: [35] },
+  crime: { movie: [80], tv: [80] },
+  documentario: { movie: [99], tv: [99] },
+  drammatico: { movie: [18], tv: [18] },
+  famiglia: { movie: [10751], tv: [10751] },
+  fantascienza: { movie: [878], tv: [10765] },
+  fantasy: { movie: [14], tv: [10765] },
+  guerra: { movie: [10752], tv: [10768] },
+  horror: { movie: [27], tv: [] },
+  mistero: { movie: [9648], tv: [9648] },
+  musica: { movie: [10402], tv: [] },
+  romantico: { movie: [10749], tv: [] },
+  storia: { movie: [36], tv: [] },
+  thriller: { movie: [53], tv: [] }
+};
+function parseGenres(value) {
+  if (!value) return [];
+  const keys = value.split(',').filter(Boolean);
+  if (keys.length > 12 || keys.some(key => !Object.hasOwn(GENRES,key)) ||
+    new Set(keys).size !== keys.length) return null;
+  return keys;
+}
+const selectedMedia = type => type === 'movie' ? ['movie'] : type === 'tv' ? ['tv'] : ['movie','tv'];
+function matchesGenres(entry, media, genres, isAnime) {
+  if (isAnime && !(entry.original_language === 'ja' &&
+    Array.isArray(entry.genre_ids) && entry.genre_ids.includes(16))) return false;
+  if (!genres.length) return true;
+  const ids = Array.isArray(entry.genre_ids) ? entry.genre_ids : [];
+  return genres.some(key => GENRES[key][media].some(id => ids.includes(id)));
+}
+function discoverParams(media,genres,isAnime,page) {
+  const ids = [...new Set(genres.flatMap(key => GENRES[key][media]))];
+  const params = { language:'it-IT', include_adult:false,
+    sort_by:'popularity.desc',page };
+  if (isAnime) {
+    params.with_genres = '16';
+    params.with_original_language = 'ja';
+  } else if (ids.length) params.with_genres = ids.join('|');
+  return params;
+}
+
+
 function normalize(item, selectedType) {
   const media = selectedType || typeOf(item.media_type);
   if (!media || !item || !Number.isSafeInteger(item.id) || item.id <= 0 || item.adult) return null;
@@ -95,12 +143,37 @@ async function fetchTMDB(path, params) {
   setCached(cacheKey, data);
   return data;
 }
-function formatPage(data, media) {
+function formatPage(data, media, genres = [], anime = false, filteredSearch = false) {
   const list = (Array.isArray(data.results) ? data.results : [])
-    .map(item => normalize(item, media)).filter(Boolean);
+    .filter(item => {
+      const kind = media || typeOf(item.media_type);
+      return kind && matchesGenres(item,kind,genres,anime);
+    }).map(item => normalize(item,media)).filter(Boolean);
   return { source: 'TMDB', items: list, page: Number(data.page) || 1,
     totalPages: Math.min(500, Number(data.total_pages) || 1),
-    totalResults: Number(data.total_results) || 0 };
+    totalResults: filteredSearch ? null : Number(data.total_results) || 0,
+    filteredSearch };
+}
+async function browse(type,genres,page) {
+  const anime = type === 'anime';
+  if (type === 'all' && !genres.length) {
+    const data = await fetchTMDB('/trending/all/week',{language:'it-IT',page});
+    return formatPage(data,null);
+  }
+  const media = selectedMedia(type);
+  const results = await Promise.all(media.map(kind => {
+    if (genres.length && !anime && !genres.some(key => GENRES[key][kind].length))
+      return Promise.resolve({page,total_pages:1,total_results:0,results:[]});
+    return fetchTMDB('/discover/'+kind, discoverParams(kind,genres,anime,page));
+  }));
+  const entries = results.flatMap((data,index)=>(data.results || [])
+    .filter(item=>matchesGenres(item,media[index],genres,anime))
+    .map(item=>({...item,media_type:media[index]})));
+  entries.sort((a,b)=>(b.popularity||0)-(a.popularity||0));
+  return {source:'TMDB',items:entries.map(item=>normalize(item)).filter(Boolean),
+    page,totalPages:Math.min(500,Math.max(...results.map(r=>r.total_pages||1))),
+    totalResults:anime&&genres.length ? null : results.reduce((sum,r)=>sum+(r.total_results||0),0),
+    filteredSearch:anime&&genres.length};
 }
 async function handle(req, res) {
   const url = new URL(req.url || '/', 'http://localhost');
@@ -115,22 +188,23 @@ async function handle(req, res) {
       const q = acceptableQuery(url.searchParams.get('q'));
       const page = clampPage(url.searchParams.get('page'));
       const requested = url.searchParams.get('type') || 'all';
-      const type = requested === 'all' ? null : typeOf(requested);
-      if (!q || !page || (requested !== 'all' && !type)) return respond(res, 400, { error: 'Ricerca non valida.' });
+      const type = requested === 'anime' || requested === 'all' ? null : typeOf(requested);
+      const genres = parseGenres(url.searchParams.get('genres'));
+      if (!q || !page || genres === null ||
+          !['all','movie','tv','anime'].includes(requested))
+        return respond(res, 400, { error: 'Ricerca non valida.' });
       const path = type ? '/search/' + type : '/search/multi';
       const data = await fetchTMDB(path, { query: q, language: 'it-IT', include_adult: false, page });
-      return respond(res, 200, formatPage(data, type));
+      return respond(res, 200, formatPage(data,type,genres,requested==='anime',
+        genres.length>0||requested==='anime'));
     }
     if (url.pathname === '/api/catalog/discover') {
       const page = clampPage(url.searchParams.get('page'));
       const requested = url.searchParams.get('type') || 'all';
-      const media = requested === 'all' ? null : typeOf(requested);
-      if (!page || (requested !== 'all' && !media)) return respond(res, 400, { error: 'Pagina o formato non valido.' });
-      const path = media ? '/discover/' + media : '/trending/all/week';
-      const data = await fetchTMDB(path, {
-        language: 'it-IT', page, ...(media ? { include_adult: false, sort_by: 'popularity.desc' } : {})
-      });
-      return respond(res, 200, formatPage(data, media));
+      const genres = parseGenres(url.searchParams.get('genres'));
+      if (!page || genres === null || !['all','movie','tv','anime'].includes(requested))
+        return respond(res, 400, { error: 'Pagina o formato non valido.' });
+      return respond(res, 200, await browse(requested,genres,page));
     }
     if (url.pathname === '/api/catalog/detail') {
       const media = typeOf(url.searchParams.get('type'));
