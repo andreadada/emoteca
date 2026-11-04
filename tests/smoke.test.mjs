@@ -8,14 +8,14 @@ import { fileURLToPath } from 'node:url';
 const read = (file) => readFileSync(new URL('../' + file, import.meta.url), 'utf8');
 
 test('All browser scripts parse as JavaScript', () => {
-  for (const file of ['js/data.js', 'js/db.js', 'js/catalog-identity.js', 'js/app.js', 'js/remote-catalog.js']) {
+  for (const file of ['js/data.js', 'js/db.js', 'js/catalog-identity.js', 'js/lists.js', 'js/app.js', 'js/remote-catalog.js']) {
     assert.doesNotThrow(() => new Script(read(file), { filename: file }));
   }
 });
 
 test('App loads the explorer and cinematic stylesheet after core assets', () => {
   const html = read('index.html');
-  for (const file of ['styles-cinema.css', 'js/data.js', 'js/db.js', 'js/catalog-identity.js', 'js/app.js', 'js/remote-catalog.js']) {
+  for (const file of ['styles-cinema.css', 'js/data.js', 'js/db.js', 'js/catalog-identity.js', 'js/lists.js', 'js/app.js', 'js/remote-catalog.js']) {
     assert.ok(existsSync(new URL('../' + file, import.meta.url)), 'Missing ' + file);
     assert.ok(html.includes(file), 'HTML does not include ' + file);
   }
@@ -25,6 +25,7 @@ test('App loads the explorer and cinematic stylesheet after core assets', () => 
   }
   assert.ok(html.indexOf('js/app.js') < html.indexOf('js/remote-catalog.js'));
   assert.ok(html.indexOf('js/catalog-identity.js') < html.indexOf('js/app.js'), 'Identity must load before app');
+  assert.ok(html.indexOf('js/lists.js') < html.indexOf('js/app.js'), 'Lists must load before app');
   assert.ok(html.includes('data-action="add"'), 'Manual entry must remain accessible');
   assert.ok(html.includes('This product uses the TMDB API but is not endorsed or certified by TMDB.'));
   assert.ok(html.includes('blue_square_2-'), 'TMDB attribution must contain approved logo');
@@ -134,8 +135,8 @@ test('Remote poster refresh only modifies image slots, never action buttons', ()
   assert.ok(css.includes('.feature-poster > .poster-image'));
   assert.ok(css.includes('.detail-poster > .poster-image'));
   const html = read('index.html');
-  assert.ok(html.includes('styles-cinema.css?v=20261104-globaltags'));
-  assert.ok(html.includes('js/app.js?v=20261104-libraryfilters'));
+  assert.ok(html.includes('styles-cinema.css?v=20261104-multilists'));
+  assert.ok(html.includes('js/app.js?v=20261104-multilists'));
 });
 
 test('Catalog identity deduplicates legacy seeds and protects personal history', () => {
@@ -212,8 +213,8 @@ test('Library filters use multi-select theme tags, Horror, local search and clea
   assert.ok(app.includes("function clearLibraryFilters()"), 'The X clears all local filter dimensions');
   assert.ok(app.includes("query='';") && app.includes("selectedThemes.clear()"));
   assert.ok(css.includes('.theme-tag.active') && css.includes('.library-searchbox'));
-  assert.ok(html.includes('styles-cinema.css?v=20261104-globaltags'));
-  assert.ok(html.includes('js/app.js?v=20261104-libraryfilters'));
+  assert.ok(html.includes('styles-cinema.css?v=20261104-multilists'));
+  assert.ok(html.includes('js/app.js?v=20261104-multilists'));
 });
 
 test('Global catalog has genre chips, Anime and a separate reset button', () => {
@@ -236,7 +237,63 @@ test('Global catalog has genre chips, Anime and a separate reset button', () => 
   assert.ok(server.includes("url.searchParams.get('genres')"), 'Server filters must receive topics');
   assert.ok(server.includes("filteredSearch ? null"), 'Do not claim exact counts when text search is filtered');
   assert.ok(html.includes('js/remote-catalog.js?v=20261104-globaltags'));
-  assert.ok(html.includes('styles-cinema.css?v=20261104-globaltags'));
+  assert.ok(html.includes('styles-cinema.css?v=20261104-multilists'));
+});
+
+test('Personal lists keep existing films and their diaries without duplication', () => {
+  const context=createContext({window:{},Date,Math});
+  new Script(read('js/lists.js')).runInContext(context);
+  const m=context.window.EmotecaLists;
+  const films=[{id:'warrior-2011',rating:10,status:'watched',notes:'Ricordo privato'},
+    {id:'your-name-2016',rating:8,status:'watched',notes:'Secondo ricordo'}];
+  const base=m.initial(films);
+  assert.equal(base.length,1);
+  assert.equal(base[0].id,'mia-lista');
+  assert.deepEqual([...base[0].filmIds],['warrior-2011','your-name-2016']);
+  let lists=m.create(base,'Serata horror');
+  assert.equal(lists.length,2);
+  const second=lists[1].id;
+  lists=m.setMembership(lists,second,'warrior-2011',true);
+  lists=m.setMembership(lists,second,'warrior-2011',true);
+  assert.deepEqual([...lists[1].filmIds],['warrior-2011'],'No duplicate membership');
+  assert.equal(lists[0].filmIds.length,2);
+  lists=m.setMembership(lists,second,'warrior-2011',false);
+  assert.equal(lists[1].filmIds.length,0);
+  assert.equal(films[0].notes,'Ricordo privato');
+  assert.equal(films[0].rating,10);
+  lists=m.rename(lists,second,'Maratona horror');
+  assert.equal(lists[1].name,'Maratona horror');
+  lists=m.remove(lists,second);
+  assert.equal(lists.length,1);
+  assert.throws(()=>m.remove(lists,'mia-lista'),/iniziale/);
+  assert.throws(()=>m.create(lists,'La mia lista'),/già/);
+  assert.throws(()=>m.normalize([{id:'lista-test',name:'Orfana',filmIds:[]}],films),/iniziale/);
+  const restored=m.normalize(m.initial(films),films);
+  assert.deepEqual([...restored[0].filmIds],films.map(f=>f.id));
+  const snapshot=read('js/db.js');
+  assert.ok(snapshot.includes('writeSnapshot'));
+  assert.ok(snapshot.includes("LIST_KEY='personal-lists-v1'"));
+  assert.ok(snapshot.includes("tx.objectStore('state').put(films,KEY)"));
+  assert.ok(snapshot.includes("tx.objectStore('state').put(lists,LIST_KEY)"));
+});
+test('Personal collections UI supports multiple lists, backup and list management', () => {
+  const html=read('index.html'),app=read('js/app.js'),css=read('styles-cinema.css');
+  for(const id of ['personal-lists','personal-list-tabs','list-dialog','list-form','list-name-input','personal-list-management']) {
+    assert.ok(html.includes('id="'+id+'"'),'Missing list control '+id);
+  }
+  assert.ok(html.includes('>Le mie liste <span id="count-all"'));
+  assert.ok(html.includes('data-action="create-list"'));
+  assert.ok(html.includes('data-action="rename-list"'));
+  assert.ok(html.includes('data-action="delete-list"'));
+  assert.ok(app.includes('function renderListTabs()'));
+  assert.ok(app.includes('function changeListMembership('));
+  assert.ok(app.includes("window.EmotecaLists.initial(films)"));
+  assert.ok(app.includes("await CatalogDB.writeSnapshot(next,nextLists)"));
+  assert.ok(app.includes('films,lists}'),'JSON backup should contain list memberships');
+  assert.ok(app.includes("listSnapshot:jsonPlan.listSnapshot"),'JSON import should restore lists');
+  assert.ok(css.includes('.personal-list-tab.active'));
+  assert.ok(html.includes('js/app.js?v=20261104-multilists'));
+  assert.ok(html.includes('styles-cinema.css?v=20261104-multilists'));
 });
 
 test('Preserve original IndexedDB name and JSON backup format', () => {
