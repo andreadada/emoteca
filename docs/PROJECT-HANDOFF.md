@@ -145,13 +145,13 @@ Nota legale: TMDB richiede attribuzione ed ha un utilizzo gratuito previsto per 
 
 **Richiesta:** la voce «La mia libreria» non serve più come semplice elenco, dato che tutte le opere sono nel catalogo globale «Tutti i film». Diventa **Le mie liste**, con una prima raccolta **La mia lista** contenente tutti i titoli già salvati (nell'esempio dell'utente: 35), e possibilità di creare, rinominare, eliminare e popolare più liste.
 
-**Implementazione in `feat/multiple-personal-lists`:**
+**Implementazione completata in `main` (PR #9, commit `2b787e5`):**
 - Modulo `js/lists.js` con validazione, migrazione default, membership molti-a-molti per ID locale, limiti di lunghezza/numero e protezione contro la cancellazione della prima lista.
 - `js/db.js`: nuovo record `state/personal-lists-v1` nella stessa IndexedDB, senza cambiare `state/all-films`, più transazione unica `writeSnapshot` per dati film+liste.
 - `js/app.js`: navbar Le mie liste, selettore di più raccolte, nome lista, nuova/rinomina/elimina lista, Rimuovi dalla lista, chip membership sulla pagina film e scelta di destinazione prima di importare dal catalogo.
 - Il film rimane **una singola scheda** con voto, note, visto e preferito indipendenti dalle membership. Le pagine Da guardare/Visti/Preferiti rimangono filtri dell'archivio personale.
 - Export JSON `format:'afterframe-catalog'` con `films` e `lists` aggiuntivo. Import vecchio (senza liste) costruisce una lista iniziale con tutte le opere importate; import completo nuovo può ripristinare più liste.
-- CSS, test Node e browser incluse. Verificare il merge PR #9 e lo stato CI prima di considerarla pubblicata, poi redeploy Coolify e prova non distruttiva sullo stesso browser.
+- CSS, test Node e browser inclusi. PR #9 unita a `main`; smoke test GitHub superati e test Chromium della versione funzionale superati. Restano necessari **redeploy Coolify e verifica sul browser reale**: nessun deploy di produzione è stato eseguito da questa chat.
 
 **Leggi [PERSONAL-LISTS.md](PERSONAL-LISTS.md) prima di intervenire sulle liste**; non riscrivere ID dei 35 titoli né spostare o cancellare dati di watch history. Non assumere che `film.ddone.it` abbia già ricevuto la nuova build; Coolify resta da verificare dopo redeploy.
 
