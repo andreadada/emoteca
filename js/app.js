@@ -398,17 +398,17 @@ function showDetail(id,push=true){
    </select>`:'';
  const journal=saved?`<section class="reaction-panel">
      <h3>Il tuo diario</h3>
-     <p>Una volta vista, questa storia rimane qui insieme ai tuoi ricordi.</p>
+     <p>Registra la tua reazione, il voto e una nota. Questi dati restano privati in questo browser.</p>
      <fieldset class="reaction-fieldset">
        <legend>Come ti ha lasciato?</legend>
-       <div class="reaction-buttons">${Object.entries(reactNames).map(([value,label])=>`<button class="reaction-choice ${f.reaction===value?'active':''}" type="button" data-reaction="${value}" data-id="${esc(f.id)}" aria-pressed="${f.reaction===value?'true':'false'}">${esc(label)}</button>`).join('')}</div>
+       <div class="reaction-buttons">${Object.entries(reactNames).map(([value,label])=>`<button class="reaction-choice ${f.reaction===value&&(value!=='unseen'||f.status!=='watched')?'active':''}" type="button" data-reaction="${value}" data-id="${esc(f.id)}" aria-pressed="${f.reaction===value&&(value!=='unseen'||f.status!=='watched')?'true':'false'}">${esc(label)}</button>`).join('')}</div>
      </fieldset>
      <div class="rating-line"><label for="personal-rating">Il tuo voto</label><input id="personal-rating" type="range" min="0" max="10" step="1" value="${f.rating===null?0:f.rating}"><output id="personal-output">${f.rating===null?'—':f.rating+'/10'}</output></div>
      <div class="note-field"><label for="personal-notes">Note private</label><textarea id="personal-notes" rows="6" maxlength="3000" placeholder="Scrivi quello che vuoi ricordare…">${esc(f.notes)}</textarea></div>
      <button class="button secondary save-personal" type="button" data-action="save-personal" data-id="${esc(f.id)}">${icon('check')} Salva voto e note</button>
    </section>`:`<section class="reaction-panel">
-      <h3>Fallo tuo.</h3>
-      <p>Questo titolo proviene dal catalogo mondiale. Aggiungilo a una lista per segnarlo come visto, conservarne il voto o scrivere note private.</p>
+      <h3>Tieni traccia di questo film.</h3>
+      <p>Salvalo in una lista per registrare la visione, assegnare un voto o scrivere una nota privata.</p>
       <button class="button primary" type="button" data-action="add-preview" ${Number.isInteger(f.year)?'':'disabled'}>Aggiungi alle mie liste</button>
       ${!Number.isInteger(f.year)?'<p class="link-notice">Questa fonte non indica l’anno: puoi aggiungere il titolo manualmente.</p>':''}
     </section>`;
@@ -434,7 +434,8 @@ function showDetail(id,push=true){
        }).join('')}</div>
        <p class="film-lists-help">Seleziona più raccolte senza duplicare la scheda.</p>
      </section>`:''}
-    ${saved&&f.why?`<p class="detail-why">${esc(f.why)}</p>`:''}
+    ${saved&&f.why&&(!window.SEED_FILMS?.some(seed=>seed.id===f.id&&seed.why===f.why))?
+      `<p class="detail-why"><strong>Perché lo hai salvato</strong> ${esc(f.why)}</p>`:''}
     ${saved&&f.catalogId&&f.catalogSource?`<p class="detail-origin">Metadati collegati a ${esc(f.catalogSource)} · Diario personale conservato</p>`:''}
     ${!saved?`<p class="detail-origin">Scheda da ${esc(f.source||'catalogo esterno')}</p>`:''}
   </div>
@@ -450,7 +451,7 @@ function showDetail(id,push=true){
      ${!saved&&f.sourceUrl&&safeUrl(f.sourceUrl)?`<a class="detail-source-link" target="_blank" rel="noopener noreferrer" href="${esc(safeUrl(f.sourceUrl))}">Apri la scheda su ${esc(f.source||'fonte esterna')} ${icon('external')}</a>`:''}
    </aside>
  </div>
- ${saved?`<div class="detail-bottom"><button class="button secondary" type="button" data-action="edit" data-id="${esc(f.id)}">${icon('edit')} Modifica scheda</button><button class="button secondary danger" type="button" data-action="delete" data-id="${esc(f.id)}">${icon('trash')} Elimina dalla libreria</button></div>`:''}`;
+ ${saved?`<div class="detail-bottom"><button class="button secondary" type="button" data-action="edit" data-id="${esc(f.id)}">${icon('edit')} Modifica scheda</button><button class="button secondary danger" type="button" data-action="delete" data-id="${esc(f.id)}">${icon('trash')} Elimina scheda personale</button></div>`:''}`;
  observePosters();
  window.scrollTo({top:0,behavior:'auto'});
 }
