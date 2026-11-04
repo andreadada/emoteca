@@ -309,3 +309,12 @@
 @media(prefers-reduced-motion:reduce) {
  .theme-switcher button {transition:none;}
 }
+
+/* Avoid squeezing the account and theme controls into the 390px masthead.
+ * Search remains immediately available in Catalogo on mobile. */
+@media(max-width:490px) {
+ .site-header .header-tools .searchbox {display:none;}
+ .site-header .header-tools {justify-content:flex-end;gap:5px;}
+ .site-header .wordmark {min-width:0;}
+ #detail-screen .detail-page-toolbar {padding-inline:0;}
+}
