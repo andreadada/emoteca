@@ -25,7 +25,7 @@
   let pages = 1;
   let items = [];
   let request = null;
-  let started = false;
+  let initPromise = null;
   let debouncer = null;
   let hasSearched = false;
 
@@ -317,14 +317,16 @@
     if (query.length < 2) { status('Inserisci almeno due caratteri.');return; }
     debouncer = setTimeout(() => refresh(), 320);
   }
-  async function init() {
-    if (started) return;
-    started = true;
-    try {
-      const result = await readJson('/api/catalog/status', {}, AbortSignal.timeout(4500));
-      serverEnabled = Boolean(result.enabled);
-    } catch { serverEnabled = false; }
-    setSourceStatus();
+  function init() {
+    if (initPromise) return initPromise;
+    initPromise = (async () => {
+      try {
+        const result = await readJson('/api/catalog/status', {}, AbortSignal.timeout(4500));
+        serverEnabled = Boolean(result.enabled);
+      } catch { serverEnabled = false; }
+      setSourceStatus();
+    })();
+    return initPromise;
   }
   async function detail(id) {
     if (/^wikidata-q\d+$/.test(id)) return wikidataDetail(id);
