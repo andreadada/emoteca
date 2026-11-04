@@ -378,6 +378,10 @@ function showDetail(id,push=true){
       <button class="button quiet" type="button" data-action="toggle-favorite-detail" data-id="${esc(f.id)}">${icon('heart')}${esc(f.favorite?'Rimuovi dai preferiti':'Aggiungi ai preferiti')}</button>`
    : `<button class="button primary" type="button" data-action="add-preview" ${Number.isInteger(f.year)?'':'disabled'}>${icon('plus')} ${Number.isInteger(f.year)?'Aggiungi alle mie liste':'Anno non disponibile'}</button>
       <button class="button quiet" type="button" data-view="explore">Torna al catalogo</button>`;
+ const targetPicker=!saved?`<label class="preview-list-label" for="preview-target-list">Salva nella lista</label>
+   <select id="preview-target-list" class="preview-target-list">
+    ${lists.map(list=>`<option value="${esc(list.id)}" ${list.id===selectedList().id?'selected':''}>${esc(list.name)}</option>`).join('')}
+   </select>`:'';
  const journal=saved?`<section class="reaction-panel">
      <h3>Il tuo diario</h3>
      <p>Una volta vista, questa storia rimane qui insieme ai tuoi ricordi.</p>
@@ -404,6 +408,7 @@ function showDetail(id,push=true){
     ${f.genre?`<p class="detail-genres">${esc(f.genre)}</p>`:''}
     ${f.description?`<p class="detail-description">${esc(f.description)}</p>`:'<p class="detail-description">La fonte non fornisce una sinossi per questo titolo.</p>'}
     <div class="detail-actions">${heroButtons}</div>
+    ${targetPicker}
     ${saved?`<section class="film-lists">
        <p class="film-lists-label">Nelle tue liste</p>
        <div class="film-lists-chips">${lists.map(list=>{
@@ -647,7 +652,7 @@ function onClick(e){const clos=e.target.closest('[data-close]');if(clos){closeDi
    let raw;
    try{raw=window.EmotecaExplorer.toLocalFilm(remoteSelection);}
    catch(error){toast(error.message,true);return;}
-   window.AfterframeCatalog.addExternal(raw).then(outcome=>{
+   window.AfterframeCatalog.addExternal(raw,$('#preview-target-list')?.value||selectedListId).then(outcome=>{
       remoteSelection=null;
       showDetail(outcome.id,false);
    }).catch(error=>toast(error.message,true));
@@ -801,7 +806,7 @@ window.AfterframeCatalog={
       }
     }
   },
-  addExternal:async raw=>{
+  addExternal:async (raw,targetList=selectedListId)=>{
     const film=validateFilm(raw);
     const existing=window.EmotecaIdentity.findSaved(films,film);
     if(existing){
@@ -815,12 +820,14 @@ window.AfterframeCatalog={
         await attachCatalogRecord(existing.id,remote,
           (window.SEED_FILMS||[]).find(seed=>seed.id===existing.id));
       }
+      if(lists.some(l=>l.id===targetList&&!l.filmIds.includes(existing.id)))
+         await changeListMembership(targetList,existing.id,true);
       return {added:false,id:existing.id};
     }
     await store(current=>{
       if(window.EmotecaIdentity.findSaved(current,film))return current;
       return [film,...current];
-    },'Titolo aggiunto alla tua libreria.');
+    },'Titolo aggiunto alle tue liste.',{targetList});
     return {added:true,id:film.id};
   }
 };
