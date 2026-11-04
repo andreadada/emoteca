@@ -486,7 +486,12 @@ function validateFilm(raw){validatePatch(raw);
 function prepareImport(raw){if(raw.length>2_000_000)throw Error('File troppo grande (limite: 2 MB per import).');const obj=JSON.parse(raw),shape=importShape(obj);const next=new Map(films.map(f=>[f.id,f])),changes=[];
  if(shape.mode==='replace'){
   if(shape.films.length>3000)throw Error('Massimo 3000 titoli per import.');const seen=new Set();for(const r of shape.films){const f=validateFilm(r);if(seen.has(f.id))throw Error('ID duplicato nel backup: '+f.id);seen.add(f.id);}
-  return {mode:'replace',next:shape.films.map(validateFilm),changes:[{op:'replace',text:`Sostituzione dell’intera libreria: ${films.length} → ${shape.films.length} titoli.`}]};
+  const replacementFilms=shape.films.map(validateFilm);
+  const listsSnapshot=obj.lists===undefined
+    ?window.EmotecaLists.initial(replacementFilms)
+    :window.EmotecaLists.normalize(obj.lists,replacementFilms);
+  return {mode:'replace',next:replacementFilms,listSnapshot:listsSnapshot,
+    changes:[{op:'replace',text:`Sostituzione dei film e delle liste: ${films.length} → ${shape.films.length} titoli.`}]};
  }
  if(!shape.operations.length)throw Error('Nessuna operazione presente.');if(shape.operations.length>1000)throw Error('Massimo 1000 operazioni per import.');
  for(let index=0;index<shape.operations.length;index++){
@@ -509,7 +514,9 @@ function preview(){const raw=$('#json-input').value;jsonPlan=null;$('#apply-impo
  }catch(err){$('#json-preview').className='json-preview error';$('#json-preview').innerHTML=`${icon('info')} <div><strong>Errore nel JSON:</strong> ${esc(err.message)}</div>`;}}
 async function applyImport(){try{if(!jsonPlan||jsonPlan.raw!==$('#json-input').value)preview();if(!jsonPlan)return;if(jsonPlan.mode==='replace'&&!confirm(`Confermi la SOSTITUZIONE COMPLETA del catalogo (${films.length} → ${jsonPlan.next.length} titoli)? Ti consigliamo di esportare prima un backup.`))return;
  const destructive=jsonPlan.changes.filter(c=>c.op==='delete');if(jsonPlan.mode!=='replace'&&destructive.length&&!confirm(`Questa importazione contiene ${destructive.length} operazioni di eliminazione. Confermi?`))return;
- const n=jsonPlan.next.length,c=jsonPlan.changes.length;await store(jsonPlan.next,`Importazione riuscita: ${c} operazioni applicate, ${n} titoli nel database.`);$('#json-input').value='';jsonPlan=null;preview();closeDialog('json-dialog');
+ const n=jsonPlan.next.length,c=jsonPlan.changes.length;
+ await store(jsonPlan.next,`Importazione riuscita: ${c} operazioni applicate, ${n} titoli nel database.`,
+   {listSnapshot:jsonPlan.listSnapshot});$('#json-input').value='';jsonPlan=null;preview();closeDialog('json-dialog');
  }catch(e){toast(e.message,true);}}
 function manuallySetPoster(f){
  if(!f.poster||posterFailed.has(f.id))return false;
@@ -652,12 +659,15 @@ function onClick(e){const clos=e.target.closest('[data-close]');if(clos){closeDi
  case'toggle-watched':{const f=films.find(x=>x.id===id);if(f)changeFilm(id,{status:f.status==='watched'?'watchlist':'watched',reaction:f.status==='watched'?'unseen':f.reaction}).then(()=>showDetail(id,false)).catch(x=>toast(x.message,true));break;}
  case'toggle-favorite-detail':{const f=films.find(x=>x.id===id);if(f)changeFilm(id,{favorite:!f.favorite}).then(()=>showDetail(id,false)).catch(x=>toast(x.message,true));break;}
  case'save-personal':{const rating=Number($('#personal-rating').value),notes=$('#personal-notes').value;changeFilm(id,{rating:rating===0?null:rating,notes}).then(()=>{showDetail(id,false);toast('Voto e note salvati.');}).catch(x=>toast(x.message,true));break;}
- case'export':downloadJson(`afterframe-backup-${new Date().toISOString().slice(0,10)}.json`,{format:'afterframe-catalog',version:1,exportedAt:new Date().toISOString(),films});toast('Backup JSON esportato.');break;
+ case'export':downloadJson(`emoteca-backup-${new Date().toISOString().slice(0,10)}.json`,
+   {format:'afterframe-catalog',version:1,exportedAt:new Date().toISOString(),films,lists});
+   toast('Backup JSON di film e liste esportato.');break;
  case'example':downloadJson('afterframe-import-esempio.json',example);break;
  case'copy-example':$('#json-input').value=JSON.stringify(example,null,2);preview();break;
  case'preview':preview();break;
  case'apply':applyImport();break;
- case'reset':{if(!confirm('Ripristinare il catalogo iniziale? Tutte le modifiche, voti e titoli aggiunti saranno cancellati. Esporta prima un backup.'))break;if(!confirm('Ultima conferma: vuoi davvero cancellare le modifiche locali?'))break;store(structuredClone(window.SEED_FILMS),'Catalogo iniziale ripristinato.').then(()=>{closeDialog('json-dialog');setView('discover');}).catch(x=>toast(x.message,true));break;}
+ case'reset':{if(!confirm('Ripristinare il catalogo iniziale? Tutte le modifiche, voti e titoli aggiunti saranno cancellati. Esporta prima un backup.'))break;if(!confirm('Ultima conferma: vuoi davvero cancellare le modifiche locali?'))break;store(structuredClone(window.SEED_FILMS),'Titoli e liste iniziali ripristinati.',
+ {listSnapshot:window.EmotecaLists.initial(window.SEED_FILMS)}).then(()=>{closeDialog('json-dialog');setView('discover');}).catch(x=>toast(x.message,true));break;}
  }
 }
 async function routeFromLocation(){
