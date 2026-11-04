@@ -524,6 +524,11 @@ await scenario('dark light selection, cinematic TMDB backdrop and Google account
     status:200,contentType:'application/json',
     body:JSON.stringify({source:'TMDB',item:remote})
   }));
+  // The preview image is a test fixture: no real TMDB film artwork is bundled.
+  await page.route('**/fictionalbackdrop.jpg',route=>route.fulfill({
+    status:200,contentType:'image/svg+xml',
+    body:'<svg xmlns="http://www.w3.org/2000/svg" width="1440" height="960"><defs><linearGradient id="g" x2="1" y2="0"><stop stop-color="#1c2e34"/><stop offset=".6" stop-color="#28535a"/><stop offset="1" stop-color="#b04b38"/></linearGradient></defs><rect width="1440" height="960" fill="url(#g)"/><circle cx="1140" cy="270" r="260" fill="#c17856" opacity=".7"/></svg>'
+  }));
   await page.evaluate(film=>window.AfterframeCatalog.openExternal(film,false),remote);
   await page.locator('#detail-cinema-backdrop .detail-cinema-image').waitFor();
   assert.ok(await page.locator('.detail-film-extras').isVisible());
@@ -535,6 +540,10 @@ await scenario('dark light selection, cinematic TMDB backdrop and Google account
     return {width:rect.width,viewport:innerWidth,pageHeight:page.height};
   });
   assert.ok(bg.width>=bg.viewport-2,'The TMDB backdrop must span the viewport');
+  await page.waitForFunction(()=>document.querySelector('.detail-cinema-image')?.naturalWidth>0);
+  const opaque=await page.evaluate(()=>getComputedStyle(document.querySelector('#detail-screen .detail-page-content')).backgroundColor);
+  assert.match(opaque,/rgba?\\(0, 0, 0, 0\\)|transparent/,
+    'Legacy opaque detail surface must not hide the cinematic background');
   assert.ok(bg.pageHeight>=650,'The backdrop must cover the entire film page');
   assert.equal(await page.locator('#detail-screen .detail-hero .detail-backdrop').count(),0,
     'Backdrop should not be a small overlay inside the old hero card');
