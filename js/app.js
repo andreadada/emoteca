@@ -9,7 +9,7 @@ const typeNames={film:'Film',anime:'Anime',serie:'Serie TV','film-anime':'Film a
 const scoreNames={emotion:'Emozione',comedy:'Commedia',action:'Azione',romance:'Romanticismo',tension:'Tensione'};
 const statusNames={watchlist:'Da guardare',watching:'In corso',watched:'Già visto'};
 const reactNames={unseen:'Non visto',cried:'Ho pianto',moved:'Mi ha commosso',nothing:'Non mi ha colpito'};
-let films=[],view='discover',typeFilter='all',tagFilter='all',sortFilter='match',query='',editFilmId=null,detailId=null,jsonPlan=null,posterQueue=[],posterActive=false;
+let films=[],view='discover',typeFilter='all',selectedThemes=new Set(),sortFilter='match',query='',editFilmId=null,detailId=null,jsonPlan=null,posterQueue=[],posterActive=false;
 let featuredId=null, remoteSelection=null, detailBackView='discover';
 const posterFailed=new Set();
 const posterCache=new Map();const posterTried=new Set();
@@ -19,7 +19,7 @@ function posterMarkup(f,eager=false){const src=(manuallySetPoster(f)?safeUrl(f.p
 function toast(msg,isError=false){const root=$('#toast-root'),el=document.createElement('div');el.className='toast'+(isError?' error':'');el.textContent=msg;root.append(el);setTimeout(()=>el.remove(),4000);}
 function currentFilms(){let arr=films.filter(f=>query?true:view==='discover'?f.status!=='watched':view==='all'?true:view==='watchlist'?f.status!=='watched':view==='watched'?f.status==='watched':view==='favorites'?f.favorite:true);
  if(typeFilter!=='all')arr=arr.filter(f=>f.type===typeFilter);
- if(tagFilter!=='all')arr=arr.filter(f=>f.tags.some(t=>normal(t)===tagFilter));
+ if(selectedThemes.size)arr=arr.filter(f=>themeValues(f).some(theme=>selectedThemes.has(theme)));
  if(query){const q=normal(query);arr=arr.filter(f=>normal([f.title,f.genre,f.year,f.description,f.why,...f.tags].join(' ')).includes(q));}
  arr.sort((a,b)=>sortFilter==='newest'?b.year-a.year:sortFilter==='oldest'?a.year-b.year:sortFilter==='title'?a.title.localeCompare(b.title,'it'):sortFilter==='emotion'?(b.scores.emotion-a.scores.emotion)||(b.match-a.match):sortFilter==='rating'?(b.rating||0)-(a.rating||0):b.match-a.match||a.title.localeCompare(b.title,'it'));
  return arr;}
@@ -109,7 +109,7 @@ function render(){
  });
  $('#film-grid').innerHTML=arr.map(card).join('');
  $('#empty-state').classList.toggle('hidden',arr.length!==0);
- refreshTagOptions();
+ refreshThemeOptions();
  observePosters();
 }
 function card(f){
@@ -125,14 +125,45 @@ function card(f){
   </div>
  </article>`;
 }
-function refreshTagOptions(){const select=$('#tag-filter'),all=[...new Set(films.flatMap(f=>f.tags.map(normal)))].sort((a,b)=>a.localeCompare(b,'it'));let html='<option value="all">Tutti i temi</option>';for(const tag of all)html+=`<option value="${esc(tag)}">${esc(tag.charAt(0).toUpperCase()+tag.slice(1))}</option>`;select.innerHTML=html;select.value=tagFilter;if(select.value!==tagFilter){tagFilter='all';select.value='all';}}
+function themeValues(f){
+ const genres=String(f.genre||'').split(/[·,;|/]+/);
+ return [...new Set([...(Array.isArray(f.tags)?f.tags:[]),...genres].map(t=>normal(t).trim()).filter(Boolean))];
+}
+let themeListKey='';
+function refreshThemeOptions(){
+ const root=$('#theme-filters');
+ const options=[...new Set(['horror',...films.flatMap(themeValues)])]
+   .sort((a,b)=>a.localeCompare(b,'it'));
+ const valid=new Set(options);
+ for(const tag of selectedThemes)if(!valid.has(tag))selectedThemes.delete(tag);
+ const key=options.join('\u0001');
+ if(key!==themeListKey){
+   root.innerHTML='<button class="theme-tag" type="button" data-theme="all" aria-pressed="true">Tutti i temi</button>'+
+      options.map(tag=>`<button class="theme-tag" type="button" data-theme="${esc(tag)}" aria-pressed="false">${esc(tag.charAt(0).toLocaleUpperCase('it')+tag.slice(1))}</button>`).join('');
+   themeListKey=key;
+ }
+ $('#theme-filters [data-theme]').forEach(button=>{
+   const active=button.dataset.theme==='all'?selectedThemes.size===0:selectedThemes.has(button.dataset.theme);
+   button.classList.toggle('active',active);
+   button.setAttribute('aria-pressed',String(active));
+ });
+ const reset=$('#clear-library-filters');
+ const dirty=typeFilter!=='all'||selectedThemes.size>0||query.length>0||sortFilter!=='match';
+ reset.disabled=!dirty;
+}
+function clearLibraryFilters(){
+ typeFilter='all';selectedThemes.clear();sortFilter='match';query='';
+ $('#library-search').value='';
+ $('#sort-filter').value='match';
+ render();
+}
 function setView(v,updateHistory=true){
  if(!Object.hasOwn(titles,v))return;
  if(v==='explore'){openExplore('',updateHistory);return;}
  if(view!==v&&v==='discover')featuredId=null;
- view=v;typeFilter='all';tagFilter='all';query='';
+ view=v;typeFilter='all';selectedThemes.clear();query='';
  $('#search').value='';
- $('#tag-filter').value='all';
+ $('#library-search').value='';
  $('#sort-filter').value='match';sortFilter='match';
  if(updateHistory)history.pushState({view:v},'',v==='discover'?location.pathname:('#'+v));
  document.title='Emoteca — La tua libreria di cinema';
@@ -493,7 +524,7 @@ function onClick(e){const clos=e.target.closest('[data-close]');if(clos){closeDi
    }).catch(error=>toast(error.message,true));
    break;
  }
- case'clear-filters':typeFilter='all';tagFilter='all';query='';$('#search').value='';render();break;
+ case'clear-filters':clearLibraryFilters();break;
  case'edit':openEdit(id);break;
  case'delete':deleteFilm(id).catch(x=>toast(x.message,true));break;
  case'toggle-watched':{const f=films.find(x=>x.id===id);if(f)changeFilm(id,{status:f.status==='watched'?'watchlist':'watched',reaction:f.status==='watched'?'unseen':f.reaction}).then(()=>showDetail(id,false)).catch(x=>toast(x.message,true));break;}
@@ -566,7 +597,17 @@ async function init(){
    $('#catalog-query').value=term;
    window.EmotecaExplorer?.search?.(term);
  }
-});$('#tag-filter').addEventListener('change',e=>{tagFilter=e.target.value;render();});$('#sort-filter').addEventListener('change',e=>{sortFilter=e.target.value;render();});$('#type-filters').addEventListener('click',e=>{const b=e.target.closest('[data-type]');if(b){typeFilter=b.dataset.type;render();}});
+});$('#library-search').addEventListener('input',e=>{query=e.target.value.trim();render();});
+ $('#sort-filter').addEventListener('change',e=>{sortFilter=e.target.value;render();});
+ $('#type-filters').addEventListener('click',e=>{const b=e.target.closest('[data-type]');if(b){typeFilter=b.dataset.type;render();}});
+ $('#theme-filters').addEventListener('click',e=>{
+   const b=e.target.closest('[data-theme]');if(!b)return;
+   const theme=b.dataset.theme;
+   if(theme==='all')selectedThemes.clear();
+   else if(selectedThemes.has(theme))selectedThemes.delete(theme);
+   else selectedThemes.add(theme);
+   render();
+ });
  document.addEventListener('click',onClick);window.addEventListener('popstate',()=>{routeFromLocation();});document.addEventListener('keydown',e=>{if(e.key==='/'&&!e.ctrlKey&&!e.altKey&&!e.metaKey&&!['INPUT','TEXTAREA'].includes(document.activeElement.tagName)&&!$$('dialog').some(d=>d.open)){e.preventDefault();$('#search').focus();}if((e.key==='Enter'||e.key===' ')&&e.target.matches('[data-open]')){e.preventDefault();showDetail(e.target.dataset.open);}});
  $('#film-form').addEventListener('submit',saveEdit);$('#edit-title').addEventListener('input',e=>{if(!editFilmId)$('#edit-id').value=slug(e.target.value);});$('#edit-sliders').addEventListener('input',e=>{if(e.target.matches('input[type=range]'))$('#out-'+e.target.id.slice(6)).textContent=e.target.value+'/5';});
  $('#detail-screen').addEventListener('input',e=>{if(e.target.id==='personal-rating')$('#personal-output').textContent=e.target.value==='0'?'—':e.target.value+'/10';});
