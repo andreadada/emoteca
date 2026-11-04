@@ -1,0 +1,9 @@
+{
+  "op": "update",
+  "id": "warrior-2011",
+  "changes": {
+    "favorite": true,
+    "scores": {"emotion": 5},
+    "notes": "Da guardare per la fratellanza e il perdono"
+  }
+}

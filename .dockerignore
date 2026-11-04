@@ -1,0 +1,4 @@
+.git
+*.zip
+__pycache__
+.DS_Store

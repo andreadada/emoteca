@@ -1,0 +1,137 @@
+<!doctype html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="theme-color" content="#0b0e13" />
+  <meta name="description" content="Afterframe: la tua cineteca emotiva personale. Scopri, valuta, salva e organizza film, anime e serie TV." />
+  <title>Afterframe — La tua cineteca emotiva</title>
+  <link rel="icon" type="image/svg+xml" href="assets/favicon.svg" />
+  <link rel="stylesheet" href="styles.css" />
+  <script src="js/data.js" defer></script>
+  <script src="js/db.js" defer></script>
+  <script src="js/app.js" defer></script>
+</head>
+<body>
+  <svg class="svg-sprite" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+    <symbol id="i-sparkles" viewBox="0 0 24 24"><path d="m12 3 1.9 6.1L20 11l-6.1 1.9L12 19l-1.9-6.1L4 11l6.1-1.9L12 3ZM19 18l.7 1.3L21 20l-1.3.7L19 22l-.7-1.3L17 20l1.3-.7L19 18Z"/></symbol>
+    <symbol id="i-home" viewBox="0 0 24 24"><path d="m3 10 9-7 9 7v10a1 1 0 0 1-1 1h-5v-7H9v7H4a1 1 0 0 1-1-1V10Z"/></symbol>
+    <symbol id="i-grid" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></symbol>
+    <symbol id="i-bookmark" viewBox="0 0 24 24"><path d="M6 3h12v18l-6-4-6 4V3Z"/></symbol>
+    <symbol id="i-eye" viewBox="0 0 24 24"><path d="M2 12S5.5 5 12 5s10 7 10 7-3.5 7-10 7S2 12 2 12Z"/><circle cx="12" cy="12" r="3"/></symbol>
+    <symbol id="i-heart" viewBox="0 0 24 24"><path d="M20.8 4.8a5.3 5.3 0 0 0-7.5 0L12 6.1l-1.3-1.3a5.3 5.3 0 0 0-7.5 7.5L12 21l8.8-8.7a5.3 5.3 0 0 0 0-7.5Z"/></symbol>
+    <symbol id="i-search" viewBox="0 0 24 24"><circle cx="10.7" cy="10.7" r="7.1"/><path d="m16 16 5 5"/></symbol>
+    <symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 4v16M4 12h16"/></symbol>
+    <symbol id="i-database" viewBox="0 0 24 24"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M3 5v14c0 1.7 4 3 9 3s9-1.3 9-3V5M3 12c0 1.7 4 3 9 3s9-1.3 9-3"/></symbol>
+    <symbol id="i-external" viewBox="0 0 24 24"><path d="M14 4h6v6m0-6-9 9"/><path d="M20 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V5a1 1 0 0 1 1-1h5"/></symbol>
+    <symbol id="i-close" viewBox="0 0 24 24"><path d="m5 5 14 14M19 5 5 19"/></symbol>
+    <symbol id="i-edit" viewBox="0 0 24 24"><path d="m4 17-1 4 4-1L20 7l-3-3L4 17ZM15 6l3 3"/></symbol>
+    <symbol id="i-trash" viewBox="0 0 24 24"><path d="M4 7h16M9 4h6M6 7l1 14h10l1-14M10 11v6M14 11v6"/></symbol>
+    <symbol id="i-download" viewBox="0 0 24 24"><path d="M12 3v13m-5-5 5 5 5-5M4 18v3h16v-3"/></symbol>
+    <symbol id="i-upload" viewBox="0 0 24 24"><path d="M12 21V8m-5 5 5-5 5 5M4 6V3h16v3"/></symbol>
+    <symbol id="i-check" viewBox="0 0 24 24"><path d="m4 12 5 5L20 6"/></symbol>
+    <symbol id="i-arrow" viewBox="0 0 24 24"><path d="M4 12h16m-6-6 6 6-6 6"/></symbol>
+    <symbol id="i-clock" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l4 2"/></symbol>
+    <symbol id="i-info" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M12 11v6M12 7h.01"/></symbol>
+    <symbol id="i-star" viewBox="0 0 24 24"><path d="m12 2 3 6.5 7 1-5 5 1.2 7L12 18l-6.2 3.5L7 14.5l-5-5 7-1L12 2Z"/></symbol>
+    <symbol id="i-filter" viewBox="0 0 24 24"><path d="M4 6h16M7 12h10M10 18h4"/></symbol>
+    <symbol id="i-menu" viewBox="0 0 24 24"><path d="M4 6h16M4 12h16M4 18h16"/></symbol>
+  </svg>
+
+  <div class="app-shell">
+    <aside class="sidebar" id="sidebar">
+      <div class="brand"><span class="brand-icon"><svg><use href="#i-sparkles"/></svg></span><div><strong>afterframe<span>.</span></strong><small>EMOTIONAL CINEMA LIBRARY</small></div></div>
+      <div class="sidebar-caption">IL TUO SPAZIO</div>
+      <nav class="side-nav" aria-label="Navigazione libreria">
+        <button class="nav-link active" data-view="discover"><svg><use href="#i-home"/></svg> Scopri <span class="nav-indicator"></span></button>
+        <button class="nav-link" data-view="all"><svg><use href="#i-grid"/></svg> Tutta la libreria <span id="count-all"></span></button>
+        <button class="nav-link" data-view="watchlist"><svg><use href="#i-bookmark"/></svg> Da guardare <span id="count-watchlist"></span></button>
+        <button class="nav-link" data-view="watched"><svg><use href="#i-eye"/></svg> Già visti <span id="count-watched"></span></button>
+        <button class="nav-link" data-view="favorites"><svg><use href="#i-heart"/></svg> Preferiti <span id="count-favorites"></span></button>
+      </nav>
+      <div class="sidebar-caption second-caption">LA TUA SENSIBILITÀ</div>
+      <div class="emotion-tags"><span>Fratellanza</span><span>Sacrificio</span><span>Perdono</span><span>Tradimento</span><span>Riscatto</span></div>
+      <div class="sidebar-spacer"></div>
+      <div class="sidebar-card"><span class="sidebar-card-ambient"></span><svg><use href="#i-database"/></svg><strong>Il tuo archivio, nelle tue mani.</strong><p>I dati sono salvati sul dispositivo. Importa, aggiorna o esporta tutto in JSON.</p><button class="button secondary sidebar-db" data-action="json">Gestisci database <svg><use href="#i-arrow"/></svg></button></div>
+      <div class="sidebar-footer">AFTERFRAME / VERSIONE 1.0</div>
+    </aside>
+
+    <main class="main-content" id="main">
+      <header class="topbar">
+        <button class="icon-btn menu-toggle" aria-label="Apri menu" data-action="menu"><svg><use href="#i-menu"/></svg></button>
+        <div class="crumb"><span>LA TUA CINETECA</span><span class="crumb-sep">/</span><strong id="current-view-name">Scopri</strong></div>
+        <div class="topbar-actions">
+          <label class="searchbox"><svg><use href="#i-search"/></svg><input id="search" type="search" placeholder="Cerca un titolo, un tema..." autocomplete="off" aria-label="Cerca film e serie"/><kbd>/</kbd></label>
+          <button class="icon-btn top-db" data-action="json" title="Importa/esporta JSON" aria-label="Gestisci JSON"><svg><use href="#i-database"/></svg></button>
+          <button class="button primary" data-action="add"><svg><use href="#i-plus"/></svg><span>Aggiungi titolo</span></button>
+        </div>
+      </header>
+
+      <div class="page-body">
+        <section class="hero" id="hero">
+          <div class="hero-text"><div class="eyebrow"><span class="eyebrow-line"></span> SELEZIONATI PER QUELLO CHE TI EMOZIONA</div>
+            <h1>Non solo storie.<br/><em>Storie che restano.</em></h1>
+            <p>Tradimenti. Sacrifici silenziosi. Fratelli che si ritrovano. Qui trovi i titoli scelti per la tua sensibilità.</p>
+            <div class="hero-actions"><button class="button primary" data-action="hero-detail">Scopri la prima scelta <svg><use href="#i-arrow"/></svg></button><button class="button frosted" data-view="watchlist">La mia watchlist</button></div>
+          </div>
+          <div class="hero-visual" aria-hidden="true"><div class="hero-halo"></div><div class="hero-poster" id="hero-poster"><span>WARRIOR</span><small>2011</small></div><div class="hero-floating"><span class="floating-heart">♥</span><div><small>PRIMA SCELTA</small><strong>Fratellanza & perdono</strong></div></div></div>
+          <span class="hero-index">01 / EMOTIONAL PICKS</span>
+        </section>
+
+        <section class="stats" aria-label="Statistiche collezione">
+          <div class="stat"><span class="stat-icon violet"><svg><use href="#i-grid"/></svg></span><div><strong id="stat-total">0</strong><small>Titoli in libreria</small></div></div>
+          <div class="stat"><span class="stat-icon blush"><svg><use href="#i-bookmark"/></svg></span><div><strong id="stat-watchlist">0</strong><small>Da scoprire</small></div></div>
+          <div class="stat"><span class="stat-icon sky"><svg><use href="#i-eye"/></svg></span><div><strong id="stat-watched">0</strong><small>Già guardati</small></div></div>
+          <div class="stat"><span class="stat-icon rose"><svg><use href="#i-heart"/></svg></span><div><strong id="stat-cried">0</strong><small>Ti hanno fatto piangere</small></div></div>
+        </section>
+
+        <section class="catalog-section">
+          <div class="catalog-heading"><div><div class="eyebrow small-eyebrow">CURATO PER TE</div><h2 id="section-title">La tua prossima storia</h2><p id="section-caption">Non classifiche generiche: affinità con quello che ti ha già emozionato.</p></div><div class="results-count" id="results-count"></div></div>
+          <div class="filter-bar"><div class="filter-pills" id="type-filters" aria-label="Filtra per formato">
+            <button class="pill active" data-type="all">Tutti</button><button class="pill" data-type="film">Film</button><button class="pill" data-type="anime">Anime</button><button class="pill" data-type="serie">Serie TV</button><button class="pill" data-type="film-anime">Film anime</button><button class="pill" data-type="film-animazione">Animazione</button>
+          </div><div class="filter-selects"><label class="visually-hidden" for="tag-filter">Tema</label><select id="tag-filter"><option value="all">Tutte le emozioni</option></select><label class="visually-hidden" for="sort-filter">Ordina</label><select id="sort-filter"><option value="match">Più affini a te</option><option value="newest">Più recenti</option><option value="oldest">Meno recenti</option><option value="title">Titolo A–Z</option><option value="emotion">Più emozionanti</option><option value="rating">Voto personale</option></select></div></div>
+          <div class="poster-grid" id="film-grid" aria-live="polite"></div>
+          <div class="empty-state hidden" id="empty-state"><div class="empty-icon"><svg><use href="#i-search"/></svg></div><h3>Nessun titolo trovato</h3><p>Prova a cambiare filtri o ad aggiungere un nuovo titolo.</p><button class="button secondary" data-action="clear-filters">Azzera filtri</button></div>
+        </section>
+        <footer class="footer"><span>AFTERFRAME © 2026 · La tua libreria emotiva</span><span><svg><use href="#i-info"/></svg> I link ai servizi sono ricerche, non disponibilità verificate.</span></footer>
+      </div>
+    </main>
+  </div>
+  <div class="mobile-overlay" id="mobile-overlay" data-action="close-menu"></div>
+
+  <dialog class="modal detail-modal" id="detail-dialog" aria-label="Dettagli titolo"><div id="detail-content"></div></dialog>
+  <dialog class="modal edit-modal" id="edit-dialog" aria-label="Aggiungi o modifica titolo">
+    <form id="film-form"><div class="modal-heading"><div><div class="eyebrow small-eyebrow">IL TUO CATALOGO</div><h2 id="form-title">Aggiungi titolo</h2></div><button class="icon-btn" type="button" data-close="edit-dialog" aria-label="Chiudi"><svg><use href="#i-close"/></svg></button></div>
+      <input type="hidden" id="edit-original-id" />
+      <div class="form-grid">
+        <label class="field span-2">Titolo <input name="title" id="edit-title" required maxlength="180" placeholder="Es. Warrior" /></label>
+        <label class="field">ID univoco <input name="id" id="edit-id" required maxlength="90" pattern="[a-z0-9][a-z0-9-]*" placeholder="es. warrior-2011" /></label>
+        <label class="field">Anno <input name="year" type="number" min="1880" max="2100" value="2024" required /></label>
+        <label class="field">Formato <select name="type" id="edit-type"><option value="film">Film</option><option value="anime">Anime</option><option value="serie">Serie TV</option><option value="film-anime">Film anime</option><option value="film-animazione">Animazione</option></select></label>
+        <label class="field">Genere <input name="genre" maxlength="100" placeholder="Drammatico · Sport" /></label>
+        <label class="field span-2">Descrizione senza spoiler <textarea name="description" rows="3" maxlength="900" placeholder="Una breve sinossi..."></textarea></label>
+        <label class="field span-2">Perché lo consigli / cosa ti ha colpito <input name="why" maxlength="280" placeholder="Fratellanza, perdono, sacrificio..." /></label>
+        <label class="field span-2">Temi (separati da virgola) <input name="tags" maxlength="300" placeholder="fratellanza, perdono, riscatto" /></label>
+        <label class="field span-2">URL copertina (https, facoltativo) <input name="poster" type="url" placeholder="https://.../poster.jpg" /></label>
+        <label class="field">Titolo per ricerca poster <input name="posterQuery" placeholder="Titolo originale" /></label>
+        <label class="field">Durata / stagioni <input name="duration" maxlength="60" placeholder="2h 20m" /></label>
+        <label class="field">Affinità stimata (0–100) <input name="match" type="number" min="0" max="100" value="80" /></label>
+        <label class="field">Avvertenze contenuti <input name="warnings" maxlength="240" placeholder="Facoltativo" /></label>
+        <div class="span-2 slider-wrap"><div class="slider-title">PROFILO DEL TITOLO <span>0 = assente · 5 = molto forte</span></div><div id="edit-sliders" class="score-edit-grid"></div></div>
+      </div>
+      <div class="modal-actions"><button type="button" class="button secondary" data-close="edit-dialog">Annulla</button><button type="submit" class="button primary"><svg><use href="#i-check"/></svg> Salva titolo</button></div>
+    </form>
+  </dialog>
+  <dialog class="modal json-modal" id="json-dialog" aria-label="Gestione database JSON">
+    <div class="modal-heading"><div><div class="eyebrow small-eyebrow">DATA MANAGEMENT</div><h2>Gestione database <span class="accent">JSON</span></h2><p>Aggiungi, modifica, aggiorna o elimina con un unico file. Anteprima prima di applicare.</p></div><button class="icon-btn" data-close="json-dialog" aria-label="Chiudi"><svg><use href="#i-close"/></svg></button></div>
+    <div class="db-actions"><button class="button secondary" data-action="export"><svg><use href="#i-download"/></svg> Esporta backup</button><button class="button secondary" data-action="example"><svg><use href="#i-download"/></svg> Esempio modifiche</button><button class="button secondary" data-action="reset"><svg><use href="#i-trash"/></svg> Ripristina catalogo</button></div>
+    <div class="drop-zone" id="drop-zone" role="button" tabindex="0"><svg><use href="#i-upload"/></svg><strong>Trascina qui il tuo file JSON</strong><span>oppure <u>seleziona un file</u> dal dispositivo</span><input type="file" id="json-file" accept="application/json,.json" hidden /></div>
+    <div class="code-label"><span>EDITOR JSON <span class="subtle">· operazioni singole, batch o backup</span></span><button data-action="copy-example" class="mini-link">Inserisci esempio</button></div>
+    <textarea id="json-input" spellcheck="false" placeholder='{"op":"update","id":"warrior-2011","changes":{"scores":{"emotion":5}}}'></textarea>
+    <div id="json-preview" class="json-preview muted"><svg><use href="#i-info"/></svg> Inserisci o carica un JSON per visualizzare le operazioni prima di applicarle.</div>
+    <div class="modal-actions"><button class="button secondary" data-action="preview"><svg><use href="#i-eye"/></svg> Verifica JSON</button><button class="button primary" id="apply-import" data-action="apply" disabled><svg><use href="#i-check"/></svg> Applica modifiche</button></div>
+    <p class="json-help">Le modifiche sono atomiche: se una operazione non è valida, non viene modificato nulla. I dati sono locali a questo browser/dispositivo. <a href="README.md" target="_blank">Guida completa</a>.</p>
+  </dialog>
+  <div id="toast-root" class="toast-root" role="status" aria-live="polite"></div>
+</body>
+</html>

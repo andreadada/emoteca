@@ -1,0 +1,9 @@
+{
+  "version": 1,
+  "operations": [
+    {"op": "update", "id": "code-geass-2006", "changes": {"match": 99, "favorite": true}},
+    {"op": "add", "film": {"id": "film-demo-2026", "title": "Film demo personalizzato", "year": 2026, "type": "film", "genre": "Drammatico", "description": "Un esempio da modificare.", "why": "Il sacrificio viene riconosciuto.", "tags": ["sacrificio", "riconoscimento"], "scores": {"emotion": 5, "comedy": 1, "action": 2, "romance": 1, "tension": 3}, "match": 90}},
+    {"op": "upsert", "film": {"id": "film-demo-2026", "title": "Film demo personalizzato, versione 2", "year": 2026, "type": "film", "tags": ["riscatto"], "scores": {"emotion": 4, "comedy": 1, "action": 2, "romance": 1, "tension": 3}}},
+    {"op": "delete", "id": "film-demo-2026"}
+  ]
+}

@@ -1,0 +1,270 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://example.local/afterframe-import.schema.json",
+  "title": "Afterframe - formato import JSON",
+  "description": "Schema di riferimento per import di operazioni e backup; la verifica definitiva avviene nell'applicazione.",
+  "oneOf": [
+    {
+      "$ref": "#/$defs/operation"
+    },
+    {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/operation"
+      },
+      "maxItems": 1000
+    },
+    {
+      "type": "object",
+      "required": [
+        "operations"
+      ],
+      "properties": {
+        "version": {
+          "type": "integer"
+        },
+        "operations": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/operation"
+          },
+          "minItems": 1,
+          "maxItems": 1000
+        }
+      }
+    },
+    {
+      "type": "object",
+      "required": [
+        "films"
+      ],
+      "properties": {
+        "format": {
+          "type": "string"
+        },
+        "version": {
+          "type": "integer"
+        },
+        "films": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/film"
+          },
+          "maxItems": 3000
+        }
+      }
+    },
+    {
+      "$ref": "#/$defs/film"
+    }
+  ],
+  "$defs": {
+    "scores": {
+      "type": "object",
+      "properties": {
+        "emotion": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 5
+        },
+        "comedy": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 5
+        },
+        "action": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 5
+        },
+        "romance": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 5
+        },
+        "tension": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 5
+        }
+      },
+      "additionalProperties": false
+    },
+    "film": {
+      "type": "object",
+      "required": [
+        "id",
+        "title",
+        "year",
+        "type"
+      ],
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^[a-z0-9][a-z0-9-]{0,89}$"
+        },
+        "title": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 180
+        },
+        "year": {
+          "type": "integer",
+          "minimum": 1880,
+          "maximum": 2100
+        },
+        "type": {
+          "enum": [
+            "film",
+            "film-anime",
+            "film-animazione",
+            "anime",
+            "serie"
+          ]
+        },
+        "genre": {
+          "type": "string"
+        },
+        "description": {
+          "type": "string"
+        },
+        "why": {
+          "type": "string"
+        },
+        "tags": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "maxItems": 30
+        },
+        "scores": {
+          "$ref": "#/$defs/scores"
+        },
+        "match": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 100
+        },
+        "status": {
+          "enum": [
+            "watchlist",
+            "watching",
+            "watched"
+          ]
+        },
+        "reaction": {
+          "enum": [
+            "unseen",
+            "cried",
+            "moved",
+            "nothing"
+          ]
+        },
+        "rating": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "minimum": 0,
+          "maximum": 10
+        },
+        "favorite": {
+          "type": "boolean"
+        },
+        "notes": {
+          "type": "string"
+        },
+        "poster": {
+          "type": "string"
+        },
+        "posterQuery": {
+          "type": "string"
+        },
+        "duration": {
+          "type": "string"
+        },
+        "warnings": {
+          "type": "string"
+        },
+        "links": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": [
+              "name",
+              "url"
+            ],
+            "properties": {
+              "name": {
+                "type": "string"
+              },
+              "url": {
+                "type": "string",
+                "format": "uri"
+              }
+            }
+          },
+          "maxItems": 20
+        }
+      },
+      "additionalProperties": true
+    },
+    "operation": {
+      "oneOf": [
+        {
+          "type": "object",
+          "required": [
+            "op",
+            "id",
+            "changes"
+          ],
+          "properties": {
+            "op": {
+              "const": "update"
+            },
+            "id": {
+              "type": "string"
+            },
+            "changes": {
+              "type": "object"
+            }
+          }
+        },
+        {
+          "type": "object",
+          "required": [
+            "op",
+            "id"
+          ],
+          "properties": {
+            "op": {
+              "const": "delete"
+            },
+            "id": {
+              "type": "string"
+            }
+          }
+        },
+        {
+          "type": "object",
+          "required": [
+            "op",
+            "film"
+          ],
+          "properties": {
+            "op": {
+              "enum": [
+                "add",
+                "upsert"
+              ]
+            },
+            "film": {
+              "$ref": "#/$defs/film"
+            }
+          }
+        }
+      ]
+    }
+  }
+}
