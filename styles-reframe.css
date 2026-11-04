@@ -662,3 +662,42 @@ a:focus-visible,summary:focus-visible {
 @media(forced-colors:active) {
  .nav-link.active,.theme-tag.active,.personal-list-tab.active,.reaction-choice.active { border:2px solid Highlight; }
 }
+
+
+/* Completion state and source notices must remain as clear as film pages. */
+.feature-empty .feature-story { align-self:center; }
+.feature-empty .feature-title { max-width:650px;font-size:clamp(43px,5.2vw,69px); }
+.feature-empty-mark {
+  color:#70917b;font:600 clamp(32px,5vw,75px)/1 var(--display);
+  letter-spacing:-.05em;opacity:.6;
+}
+.catalog-results-head { gap:22px;margin:24px 0 25px;align-items:end; }
+.catalog-results-head h3 {
+  color:#254233;font:500 clamp(29px,3vw,40px)/1.1 var(--display);
+  letter-spacing:-.032em;margin:6px 0 0;
+}
+.catalog-results-head p:last-child { color:#6c806e;font-size:12px;line-height:1.6; }
+.catalog-results-head p.error { color:#a54032; }
+.catalog-provider-note>p { color:#62786a;font-size:12px; }
+.catalog-setup {
+  max-width:830px;background:#f2f6ef;border:1px solid #cbdcc9;
+  border-radius:5px;padding:19px 22px;margin:16px 0;color:#395744;
+}
+.catalog-setup summary { color:#2f593c;font-size:13px;font-weight:750; }
+.catalog-setup>p,.catalog-setup>label { color:#5d7765;font-size:12px;line-height:1.7; }
+.catalog-setup>a { color:#2e6a45; }
+.catalog-token-row input { border:1px solid #bfcdbf;background:#fff;color:#274b36; }
+.catalog-token-row button { border-color:#335d42;background:#335d42;color:#fff; }
+.detail-why strong { color:#385342;margin-right:5px;font-style:normal; }
+.rating-line output { font-variant-numeric:tabular-nums; }
+.film-card .card-content { min-height:48px; }
+@media(max-width:760px) {
+ .catalog-results-head { margin:16px 0 22px; }
+ .catalog-results-head h3 { font-size:31px; }
+ .catalog-results-head p:last-child { font-size:12px; }
+}
+@media(max-width:490px) {
+ .feature-empty .feature-art { display:none; }
+ .feature-empty .feature-title { font-size:43px; }
+ .catalog-setup { padding:15px; }
+}
