@@ -155,6 +155,22 @@ Nota legale: TMDB richiede attribuzione ed ha un utilizzo gratuito previsto per 
 
 **Leggi [PERSONAL-LISTS.md](PERSONAL-LISTS.md) prima di intervenire sulle liste**; non riscrivere ID dei 35 titoli né spostare o cancellare dati di watch history. Non assumere che `film.ddone.it` abbia già ricevuto la nuova build; Coolify resta da verificare dopo redeploy.
 
+## UX Reframe — revisione grafica integrale, 4 novembre 2026
+
+**Motivazione:** l'utente ha respinto l'intero precedente layout come “AI slop”; la risposta non è cambiare soltanto font e bordi, ma migliorare le azioni principali e tutta la gerarchia di scoperta/catalogo/liste/diario.
+
+**Branch di lavoro:** `feat/cinematheque-ux-redesign` / PR #10. **Documento di riferimento:** [DESIGN-REFRAME-2026.md](DESIGN-REFRAME-2026.md) (problemi osservati, benchmark Letterboxd/MUBI/Trakt/Criterion, criteri, token, motion budget e test). Non dichiarare questa versione live fino a merge + redeploy confermati.
+
+**Implementazione:**
+- `styles-reframe.css`: nuova identità tipografica Public Sans/Newsreader, palette carta/verde/terracotta, poster 5/3/2 colonne, scheda film e diario su superfici chiare, focus accessibili, filtri scorrevoli, layout 1440/390, animazioni CSS limitate con reduced motion.
+- `index.html`: ricerca **prima dei filtri globali**, navigazione più chiara («Scopri», «Catalogo», «Le mie liste», «Da vedere»), elimina CTA «Esplora» ridondante. Si carica CSS nuovo dopo quello legacy, senza modificare backend.
+- `js/app.js`: home focalizzata su un consiglio **non ancora visto**, azione rapida «Già visto», vuoto significativo se non restano titoli, niente griglia duplicata sotto la home. Note e stati personali restano negli stessi record.
+- `js/remote-catalog.js`: pulsante ✓ dei film già presenti porta ora alla gestione delle liste, anziché essere disabilitato.
+- `tests/smoke.test.mjs` e `tests/ui-e2e.mjs`: controlli specifici su ordini/filtri, pagine film, geometria poster, responsive, mobile e assenza regressioni.
+- Nessuna migrazione IndexedDB, database o modifica al proxy TMDB/Wikidata. `styles-cinema.css` rimane base compatibile per gli elementi non sostituiti; per refactor successivi mantenere `styles-reframe.css` come fonte dell'identità visiva prima di rimuovere i vecchi stili.
+
+**Per nuova chat:** verificare CI PR #10, screenshot Playwright e risultato sul dominio; non confondere codice GitHub con aggiornamento effettivo Coolify. Se i test danno esito diverso dalle intenzioni, investigare screenshot/console prima di intervenire su dati.
+
 ## 4. Cosa fare ADESSO — roadmap prioritaria
 
 ### P0 — Portare online e validare
