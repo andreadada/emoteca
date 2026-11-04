@@ -242,6 +242,7 @@ function store(nextOrUpdater,notify,options={}){
    await CatalogDB.writeSnapshot(next,nextLists);
    films=next;
    lists=nextLists;
+   if(!lists.some(list=>list.id===selectedListId))selectedListId='mia-lista';
    refreshAfterWrite(options.background);
    if(notify)toast(notify);
  });
@@ -710,11 +711,17 @@ async function init(){
    if(old===undefined||old===null){old=structuredClone(window.SEED_FILMS);await CatalogDB.write(old);}
    if(!Array.isArray(old))throw Error('Il database contiene dati in un formato non riconosciuto.');
    films=old.map(validateFilm);
-   const previousLists=await CatalogDB.readLists();
-   if(previousLists===null){
+   try{
+     const previousLists=await CatalogDB.readLists();
+     if(previousLists===null){
+       lists=window.EmotecaLists.initial(films);
+       await CatalogDB.writeLists(lists);
+     }else lists=window.EmotecaLists.normalize(previousLists,films);
+   }catch(listError){
+     // A corrupt list record must never hide or overwrite valid film diaries.
      lists=window.EmotecaLists.initial(films);
-     await CatalogDB.writeLists(lists);
-   }else lists=window.EmotecaLists.normalize(previousLists,films);
+     toast('Le liste non sono leggibili: i film sono intatti. Esporta un backup prima di modificarle.',true);
+   }
    render();
  }catch(e){
    toast('Errore di caricamento: '+e.message,true);
