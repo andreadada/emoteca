@@ -21,6 +21,71 @@
   let mode = 'wikidata';
   let query = '';
   let type = 'all';
+
+  const selectedThemes = new Set();
+  // Mirrors the server's explicit TMDB genre IDs. No TV horror category exists in
+  // TMDB; don't disguise Mistero/Fantasy as Horror.
+  const GENRES = {
+    azione:{movie:[28],tv:[10759]}, avventura:{movie:[12],tv:[10759]},
+    animazione:{movie:[16],tv:[16]}, commedia:{movie:[35],tv:[35]},
+    crime:{movie:[80],tv:[80]}, documentario:{movie:[99],tv:[99]},
+    drammatico:{movie:[18],tv:[18]}, famiglia:{movie:[10751],tv:[10751]},
+    fantascienza:{movie:[878],tv:[10765]}, fantasy:{movie:[14],tv:[10765]},
+    guerra:{movie:[10752],tv:[10768]}, horror:{movie:[27],tv:[]},
+    mistero:{movie:[9648],tv:[9648]}, musica:{movie:[10402],tv:[]},
+    romantico:{movie:[10749],tv:[]}, storia:{movie:[36],tv:[]},
+    thriller:{movie:[53],tv:[]}
+  };
+  const genreKeys = () => [...selectedThemes].sort();
+  const listTypes = category => category === 'movie' ? ['movie'] :
+    category === 'tv' ? ['tv'] : ['movie','tv'];
+  const matchGenre = (entry,media,genres,anime) => {
+    const ids = Array.isArray(entry.genre_ids) ? entry.genre_ids : [];
+    if (anime && !(entry.original_language === 'ja' && ids.includes(16))) return false;
+    return !genres.length || genres.some(key => GENRES[key][media].some(id=>ids.includes(id)));
+  };
+  function providerParams(media,genres,anime,page) {
+    const params = { page,language:'it-IT',include_adult:'false',sort_by:'popularity.desc' };
+    if(anime) {params.with_genres='16';params.with_original_language='ja';}
+    else {
+      const ids=[...new Set(genres.flatMap(key=>GENRES[key][media]))];
+      if(ids.length)params.with_genres=ids.join('|');
+    }
+    return params;
+  }
+  function filteredPage(data,media,genres,anime) {
+    return { source:'TMDB',
+      items:(data.results||[]).filter(item=>{
+        const kind=media||item.media_type;
+        return ['movie','tv'].includes(kind)&&matchGenre(item,kind,genres,anime);
+      }).map(item=>tmdbItem(item,media)).filter(Boolean),
+      page:data.page||1,totalPages:Math.min(500,data.total_pages||1),
+      totalResults:genres.length||anime?null:data.total_results||0,
+      filteredSearch:Boolean(genres.length||anime) };
+  }
+  async function discoverDirect(args,signal) {
+    const genres=String(args.genres||'').split(',').filter(Boolean);
+    const anime=args.type==='anime';
+    if(args.type==='all'&&!genres.length) {
+      const data=await tmdbDirect('/trending/all/week',{language:'it-IT',page:args.page},signal);
+      return filteredPage(data,null,[],false);
+    }
+    const media=listTypes(args.type);
+    const results=await Promise.all(media.map(async kind=>{
+      if(genres.length&&!anime&&!genres.some(key=>GENRES[key][kind].length))
+        return {page:args.page,total_pages:1,total_results:0,results:[]};
+      return tmdbDirect('/discover/'+kind,providerParams(kind,genres,anime,args.page),signal);
+    }));
+    const combined=results.flatMap((data,i)=>(data.results||[])
+      .filter(item=>matchGenre(item,media[i],genres,anime))
+      .map(item=>({...item,media_type:media[i]})));
+    combined.sort((a,b)=>(b.popularity||0)-(a.popularity||0));
+    return {source:'TMDB',items:combined.map(item=>tmdbItem(item)).filter(Boolean),
+      page:args.page,totalPages:Math.min(500,Math.max(...results.map(x=>x.total_pages||1))),
+      totalResults:anime&&genres.length?null:results.reduce((n,x)=>n+(x.total_results||0),0),
+      filteredSearch:anime&&genres.length};
+  }
+
   let page = 1;
   let pages = 1;
   let items = [];
@@ -85,19 +150,13 @@
     }
     if (source === 'personal') {
       if (kind === 'search') {
-        const media = args.type === 'all' ? null : args.type;
+        const media = args.type === 'all' || args.type === 'anime' ? null : args.type;
         const result = await tmdbDirect(media ? '/search/' + media : '/search/multi',
           { query: args.q, page: args.page, language: 'it-IT', include_adult: 'false' }, signal);
-        return { source: 'TMDB', items: (result.results || []).map((item) => tmdbItem(item, media)).filter(Boolean),
-          page: result.page || 1, totalPages: Math.min(500, result.total_pages || 1), totalResults: result.total_results || 0 };
+        return filteredPage(result,media,String(args.genres||'').split(',').filter(Boolean),args.type==='anime');
       }
       if (kind === 'discover') {
-        const media = args.type === 'all' ? null : args.type === 'tv' ? 'tv' : 'movie';
-        const result = await tmdbDirect(media ? '/discover/' + media : '/trending/all/week',
-          { page: args.page, language: 'it-IT',
-            ...(media ? { include_adult: 'false', sort_by: 'popularity.desc' } : {}) }, signal);
-        return { source: 'TMDB', items: (result.results || []).map((item) => tmdbItem(item, media)).filter(Boolean),
-          page: result.page || 1, totalPages: Math.min(500, result.total_pages || 1), totalResults: result.total_results || 0 };
+        return discoverDirect(args,signal);
       }
       if (kind === 'detail') {
         const result = await tmdbDirect('/' + args.type + '/' + args.id, { language: 'it-IT' }, signal);
@@ -156,7 +215,10 @@
       const entity = data.entities?.[id];
       if (!entity || entity.missing !== undefined) return [];
       const kind = wikidataType(entity);
-      if (!kind || (mediaType === 'movie' && kind === 'serie') || (mediaType === 'tv' && kind !== 'serie')) return [];
+      if (!kind ||
+          (mediaType === 'movie' && (kind === 'serie' || kind === 'anime')) ||
+          (mediaType === 'tv' && kind !== 'serie' && kind !== 'anime') ||
+          (mediaType === 'anime' && kind !== 'anime')) return [];
       const title = entity.labels?.it?.value || entity.labels?.en?.value || '';
       if (!title) return [];
       const filename = property(entity, 'P18');
@@ -231,7 +293,10 @@
       </article>`;
     }).join('');
     $('#catalog-empty').hidden = items.length !== 0 || !hasSearched;
-    $('#global-next').hidden = page >= pages || !items.length;
+    $('#catalog-empty p').textContent = page < pages
+      ? 'Nessuna corrispondenza in questa pagina. Prova Mostra altri film.'
+      : 'Nessun risultato da questa fonte. Prova un titolo diverso, anche nella lingua originale.';
+    $('#global-next').hidden = page >= pages || catalogMode()==='wikidata';
   }
   function setSourceStatus() {
     const active = catalogMode();
@@ -246,6 +311,19 @@
       ? 'Wikidata è un archivio aperto, ma non dispone di una locandina per ogni opera e la ricerca restituisce fino a 50 candidati per richiesta. Con TMDB connesso puoi sfogliare molte più schede e copertine.'
       : 'Metadati e immagini da TMDB, nel rispetto dei suoi termini. La copertura non è universale: alcuni titoli e locandine possono mancare.';
   }
+  function updateFilterControls() {
+    $('#global-type').querySelectorAll('[data-catalog-type]').forEach(button=>{
+      const active=button.dataset.catalogType===type;
+      button.classList.toggle('active',active);
+      button.setAttribute('aria-pressed',String(active));
+    });
+    $('#global-themes').querySelectorAll('[data-global-theme]').forEach(button=>{
+      const active=button.dataset.globalTheme==='all'?!selectedThemes.size:selectedThemes.has(button.dataset.globalTheme);
+      button.classList.toggle('active',active);
+      button.setAttribute('aria-pressed',String(active));
+    });
+    $('#clear-global-filters').disabled=type==='all'&&!query&&!selectedThemes.size;
+  }
   async function refresh(reset = true) {
     if (request) request.abort();
     request = new AbortController();
@@ -255,59 +333,90 @@
     $('#global-next').disabled = true;
     displayLocal(query);
     setSourceStatus();
+    updateFilterControls();
+    const filtered=selectedThemes.size>0||type==='anime';
     status(query ? 'Ricerca nel catalogo…' : 'Caricamento del catalogo…');
-    $('#catalog-results-title').textContent = query ? 'Risultati nel catalogo mondiale' : 'Film da esplorare';
+    $('#catalog-results-title').textContent = type==='anime' ? 'Anime da esplorare' :
+      query ? 'Risultati nel catalogo mondiale' : 'Film da esplorare';
     try {
       let result;
       if (catalogMode() === 'wikidata') {
-        if (!query) {
-          result = { source: 'Wikidata', items: [], page: 1, totalPages: 1, totalResults: 0 };
-          status('Per esplorare un catalogo senza limiti di ricerca, configura TMDB. Puoi comunque cercare titoli con Wikidata.');
-        } else result = await wikidataSearch(query, type, signal);
-      } else result = await remoteRequest(query ? 'search' : 'discover',
-        query ? { q: query, page, type } : { page, type }, signal);
+        if (selectedThemes.size) {
+          result={source:'Wikidata',items:[],page:1,totalPages:1,totalResults:0};
+          status('I filtri per genere richiedono TMDB. Wikidata non restituisce generi affidabili in questa ricerca.');
+        } else if (!query) {
+          result={source:'Wikidata',items:[],page:1,totalPages:1,totalResults:0};
+          status('Per sfogliare il catalogo e usare i generi, configura TMDB. Puoi comunque cercare titoli con Wikidata.');
+        } else result=await wikidataSearch(query,type,signal);
+      } else result=await remoteRequest(query?'search':'discover',
+        { ...(query?{q:query}:{}),page,type,genres:genreKeys().join(',')},signal);
       if (signal.aborted) return;
-      if (reset) items = [];
-      items.push(...(result.items || []));
-      pages = Number(result.totalPages) || 1;
-      $('#catalog-count').textContent = result.totalResults
-        ? new Intl.NumberFormat('it-IT').format(result.totalResults) + ' risultati nella fonte'
-        : '';
-      page = Number(result.page) || page;
-      renderResults();
-      if (query) status(result.items.length
-        ? 'Risultati dalla fonte ' + result.source + (pages > 1 ? ' · Pagina ' + page + ' di ' + pages : '')
-        : 'Nessun risultato in questa fonte. Prova il titolo originale.');
-      else if (catalogMode() !== 'wikidata') status('Sfoglia il catalogo mondiale o cerca un titolo.');
-    } catch (error) {
-      if (signal.aborted) return;
-      if (catalogMode() === 'server' && (error.status === 503 || error.status === 404)) {
-        serverEnabled = false;
-        await refresh(reset);
-        return;
+      if (reset) items=[];
+      items.push(...(result.items||[]));
+      pages=Number(result.totalPages)||1;
+      page=Number(result.page)||page;
+      if (result.filteredSearch) {
+        $('#catalog-count').textContent=items.length+' corrispondenze nelle pagine esaminate';
+      } else {
+        $('#catalog-count').textContent=result.totalResults
+          ? new Intl.NumberFormat('it-IT').format(result.totalResults)+' risultati nella fonte' : '';
       }
-      status(error.message + ' Verifica la connessione o riprova.', true);
+      renderResults();
+      if (catalogMode()==='wikidata' && (selectedThemes.size||!query)) {
+        // Provider limitation is the intended message, not "no results".
+      } else if(type==='tv' && selectedThemes.size &&
+          !genreKeys().some(key=>GENRES[key].tv.length)) {
+        status('TMDB non classifica questi generi per le serie TV. Seleziona Film o altri temi.');
+      } else if(query && filtered) {
+        status(result.items.length
+          ? 'Risultati filtrati in questa pagina TMDB · Pagina '+page+' di '+pages
+          : 'Nessuna corrispondenza in questa pagina. Puoi esplorare le pagine successive.');
+      } else if(query) status(result.items.length
+        ? 'Risultati dalla fonte '+result.source+(pages>1?' · Pagina '+page+' di '+pages:'')
+        : 'Nessun risultato in questa fonte. Prova il titolo originale.');
+      else if(catalogMode()!=='wikidata') status('Sfoglia il catalogo mondiale o cerca un titolo.');
+    } catch(error) {
+      if(signal.aborted)return;
+      if(catalogMode()==='server'&&(error.status===503||error.status===404)) {
+        serverEnabled=false;await refresh(reset);return;
+      }
+      status(error.message+' Verifica la connessione o riprova.',true);
     } finally {
-      if (request?.signal === signal) {
-        request = null;
-        $('#global-next').disabled = false;
+      if(request?.signal===signal) {
+        request=null;
+        $('#global-next').disabled=false;
       }
     }
   }
   function setType(value) {
-    if (!['all', 'movie', 'tv'].includes(value) || value === type) return;
-    type = value;
-    $('#global-type').querySelectorAll('button').forEach(button => {
-      const selected = button.dataset.catalogType === type;
-      button.classList.toggle('active', selected);
-      button.setAttribute('aria-pressed', String(selected));
-    });
+    if(!['all','movie','tv','anime'].includes(value)||value===type)return;
+    type=value;
+    updateFilterControls();
     refresh();
+  }
+  function toggleTheme(value) {
+    if(value==='all')selectedThemes.clear();
+    else if(Object.hasOwn(GENRES,value)){
+      if(selectedThemes.has(value))selectedThemes.delete(value);
+      else selectedThemes.add(value);
+    } else return;
+    updateFilterControls();
+    refresh();
+  }
+  function clearFilters() {
+    type='all';
+    selectedThemes.clear();
+    query='';
+    $('#catalog-query').value='';
+    $('#search').value='';
+    updateFilterControls();
+    search('');
   }
   function search(value) {
     query = String(value || '').trim().slice(0, 120);
     $('#catalog-query').value = query;
     displayLocal(query);
+    updateFilterControls();
     if (!$('#explore-page').hidden && !new URL(location.href).searchParams.has('film')) {
       const url = new URL(location.href);
       url.hash = '';
@@ -406,7 +515,10 @@
       return;
     }
     const typeButton = event.target.closest('[data-catalog-type]');
-    if (typeButton) setType(typeButton.dataset.catalogType);
+    if (typeButton) { setType(typeButton.dataset.catalogType); return; }
+    const tag=event.target.closest('[data-global-theme]');
+    if(tag) { toggleTheme(tag.dataset.globalTheme); return; }
+    if(event.target.closest('#clear-global-filters')) { clearFilters(); return; }
     if (event.target.closest('#global-next')) { page += 1; refresh(false); }
     if (event.target.closest('#catalog-enable')) {
       const value = $('#catalog-token').value.trim().replace(/^Bearer\s+/i, '');
