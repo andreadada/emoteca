@@ -159,8 +159,29 @@ async function openExplore(term='',updateHistory=true){
  window.EmotecaExplorer?.search?.(typed);
  if(first)window.scrollTo({top:0,behavior:'auto'});
 }
-async function store(next,notify){await CatalogDB.write(next);films=next;render();if(notify)toast(notify);}
-async function changeFilm(id,change){const next=films.map(f=>f.id===id?{...f,...change,updatedAt:new Date().toISOString()}:f);await store(next);}
+let writeQueue=Promise.resolve();
+function store(nextOrUpdater,notify,options={}){
+ const operation=async()=>{
+   const next=typeof nextOrUpdater==='function'?nextOrUpdater(films):nextOrUpdater;
+   if(next===films)return;
+   await CatalogDB.write(next);
+   films=next;
+   if(options.background){
+     // Do not close the film page or overwrite a note being typed.
+     if(!$('#detail-screen').hidden){/* Refresh on the next navigation. */}
+     else if(view==='explore')window.EmotecaExplorer?.refreshSaved?.();
+     else render();
+   }else render();
+   if(notify)toast(notify);
+ };
+ const pending=writeQueue.then(operation,operation);
+ writeQueue=pending.catch(()=>{});
+ return pending;
+}
+async function changeFilm(id,change){
+ await store(current=>current.map(f=>f.id===id?
+  {...f,...change,updatedAt:new Date().toISOString()}:f));
+}
 function openDialog(id){const d=$('#'+id);if(!d.open)d.showModal();}
 function closeDialog(id){const d=$('#'+id);if(d.open)d.close();}
 function streaming(f){const q=encodeURIComponent(f.title),search=encodeURIComponent(f.posterQuery||f.title);
