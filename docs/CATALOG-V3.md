@@ -34,6 +34,14 @@ Existing public port **80** remains unchanged. **Coolify build strategy must be 
 - `GET /api/catalog/status` reports whether the proxy is configured but does not reveal the token.
 - If missing, the proxy returns 503 on protected endpoints; the frontend uses Wikidata fallback and shows its limits.
 
+## Filtri globali (v3.1)
+
+Le schede del catalogo mondiale sono `all`, `movie`, `tv`, `anime`. `anime` include **sia film sia serie** il cui genere TMDB contiene `16` (animazione) e la lingua originale è `ja`. È una selezione convenzionale di anime giapponesi, non un indice esaustivo.
+
+Entrambi gli endpoint `search` e `discover` accettano `genres` opzionale (es. `genres=horror,azione`), selezione OR sui generi disponibili per medium. L'API valida i nomi e il numero massimo dei tag. `/discover` usa `with_genres` direttamente in TMDB e combina movie/tv se necessario; `/search` filtra i risultati ritornati dalla pagina di ricerca, **non il database mondiale completo**, mantenendo paginazione e senza inventare totali filtrati.
+
+`Horror` esiste come genere TMDB film 27, non come genere televisivo. Non approssimare le serie Mystery/Sci-Fi come Horror. Nel fallback Wikidata i temi non sono filtrabili in modo attendibile e la UI ne indica il limite. Controllare sempre post-deploy che le query reali rispondano con il token TMDB di Coolify.
+
 ## Endpoints
 
 - `GET /api/catalog/status` — `{provider,enabled,message}`.
