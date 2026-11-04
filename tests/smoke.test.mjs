@@ -341,7 +341,8 @@ test('Personal collections UI supports multiple lists, backup and list managemen
   assert.ok(app.includes('function changeListMembership('));
   assert.ok(app.includes("window.EmotecaLists.initial(films)"));
   assert.ok(app.includes("await CatalogDB.writeSnapshot(next,nextLists)"));
-  assert.ok(app.includes('films,lists}'),'JSON backup should contain list memberships');
+  assert.ok(app.includes('payload.lists=storedLists')&&app.includes('async function exportBackup()'),
+    'JSON backup must include the stored membership record without replacing it with a synthetic fallback');
   assert.ok(app.includes("listSnapshot:jsonPlan.listSnapshot"),'JSON import should restore lists');
   assert.ok(css.includes('.personal-list-tab.active'));
   assert.ok(html.includes('js/app.js?v=20261104-multilists'));
