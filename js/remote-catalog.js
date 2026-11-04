@@ -325,7 +325,6 @@
       serverEnabled = Boolean(result.enabled);
     } catch { serverEnabled = false; }
     setSourceStatus();
-    if ($('#explore-page') && !$('#explore-page').hidden) await refresh();
   }
   async function detail(id) {
     if (/^wikidata-q\d+$/.test(id)) return wikidataDetail(id);
