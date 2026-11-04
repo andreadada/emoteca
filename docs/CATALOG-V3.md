@@ -1,0 +1,89 @@
+# Emoteca 3.0 — Worldwide catalog architecture
+
+## User goals
+
+The previous implementation only searched 34 locally saved titles, showed an external-search modal and had no guarantee of poster coverage. The new architecture introduces a dedicated browse/search page, linked film pages, rotating recommendations and server-side metadata access.
+
+### Distinguish two datasets
+
+1. **Worldwide browse catalog**: remote, never stored in the browser in bulk; provider-aware, paginated when supported.
+2. **Personal library**: persisted via existing IndexedDB `afterframe-catalog-v1` with JSON import/export; statuses, reactions, favorites, votes, and notes stay on the user's device.
+
+**Coverage statement:** there is no database containing literally every film or every poster ever produced. TMDB covers many international titles but has missing/incorrect entries; Wikidata is open, but its MediaWiki search and image completeness are limited. Do not claim universal completeness.
+
+## Data providers
+
+| Provider | Authentication | Browse | Search | Posters | Notes |
+|---|---|---|---|---|---|
+| TMDB via Emoteca proxy | `TMDB_READ_TOKEN` server env | `/discover/movie`, `/discover/tv`, pages 1–500 | `/search/multi` or movie/tv | `image.tmdb.org` if present | Requires attribution and noncommercial developer license |
+| TMDB direct, personal token | Token in runtime memory only | Same | Same | Same | Browser makes requests directly to TMDB. Personal use only, subject to TMDB policies |
+| Wikidata | None | No complete browsing through API | `wbsearchentities` + `wbgetentities` | Commons files on individual licences | Up to 50 candidate matches from search API; CC0 structured data |
+
+Avoid crawling IMDb's public website or redistributing their non-commercial TSV datasets in a public catalog.
+
+## Production deployment (Coolify)
+
+Existing public port **80** remains unchanged.
+
+- Docker image: `nginx:stable-alpine` with `nodejs` installed.
+- `/opt/emoteca/catalog-api.mjs` listens on `127.0.0.1:8787`.
+- Nginx serves HTML/CSS/JS and reverse proxies `/api/catalog/*` to Node.
+- Add **`TMDB_READ_TOKEN`** in Coolify environment variables. Do not commit the token, expose it as a frontend variable, or pass it to external clients.
+- `GET /api/catalog/status` reports whether the proxy is configured but does not reveal the token.
+- If missing, the proxy returns 503 on protected endpoints; the frontend uses Wikidata fallback and shows its limits.
+
+## Endpoints
+
+- `GET /api/catalog/status` — `{provider,enabled,message}`.
+- `GET /api/catalog/search?q=...&page=1&type=all|movie|tv` — normalizes international search results, omits people/adult entries.
+- `GET /api/catalog/discover?page=1&type=movie|tv` — TMDB popularity-sorted browsing, paginated.
+- `GET /api/catalog/detail?type=movie|tv&id=123` — metadata and backdrop.
+- `GET /api/catalog/poster?title=...&year=2016&type=movie` — requires exact title/original-title and matching year for poster enrichment (avoid incorrect artwork).
+
+Properties returned: stable provider ID, title, original title, year, film/TV type, synopsis, poster/backdrop URLs, genre/duration when available, canonical TMDB link. Blank values are left blank; no fabricated plots, posters or release dates.
+
+## UX
+
+- **Home recommendation** chosen from `watchlist`/`watching` with `reaction=unseen`, random among eligible, excluding the previous featured ID stored only in `sessionStorage`. A watched title is never selected, and home hides the feature if every title was watched.
+- **Header search** enters the global catalog after two characters rather than only the local library.
+- **Catalog search** shows local matches in a separate horizontal rail, then the external results. The provider is labeled and missing covers use a typography fallback.
+- **Film page** has a navigable URL `?film=<id>` and an explicit back action. Unadded films display facts and the **add to library** action, without pretending to have local ratings/notes. Added films display status, reaction, rating, private notes and editing.
+- **Favorites and ratings** are persisted only after saving a film to the local library.
+- **Film images** prioritize TMDB when configured; if legacy image URLs are broken, the app tries a provider lookup and specialized fallbacks. The UI must never guarantee poster coverage for unindexed titles.
+
+## Performance, privacy, and security
+
+- No full movie database download at runtime.
+- API endpoint allowlist, input validation, bounded in-memory TTL cache (300 keys, 10 minutes) and request timeouts.
+- Browser does not receive `TMDB_READ_TOKEN`; it only calls same-origin `/api/catalog/*`.
+- Personal watch history, ratings, and notes never go to the server. Only search terms and public film identifiers go to TMDB or Wikidata.
+- Provider credentials are never saved in IndexedDB, localStorage, sessionStorage, the repository, or export files.
+- External UI text is HTML escaped; URL schemes for images/links are validated.
+- Posters from TMDB and Commons require proper attribution; production or monetized deployments must satisfy each provider's license terms.
+
+## Verification
+
+Node syntax and smoke tests:
+
+```bash
+node --test tests/*.test.mjs
+```
+
+GitHub Actions `ui-e2e.yml` builds the actual Dockerfile, boots Nginx and the API proxy, runs Chromium desktop/mobile flows with simulated Wikidata results (to avoid flaky external dependencies), and uploads screenshots.
+
+Manual production acceptance checks after deploying with a real token:
+- `/api/catalog/status` shows `enabled:true`.
+- Search `Your Name`, `La dolce vita`, `Interstellar` and obscure Italian titles. Confirm localized and original titles work.
+- Change film/TV filter and page through results.
+- Confirm TMDB posters show, and no generated covers are used when metadata lacks imagery.
+- Open a film in a separate tab by its URL and return via the explicit back action.
+- Mark a film as watched, refresh, and ensure it cannot appear in the homepage recommendation.
+- Export local JSON backup and reimport; verify no data loss.
+
+## Known limitations
+
+- Wikidata text search is not a complete catalog dump and may omit films/years/posters; missing year blocks automatic import.
+- TMDB free usage is restricted to non-commercial use with attribution; commercial projects need a negotiated license.
+- TMDB caps certain result sets to 500 pages and results are ranked/filtered by API; no provider can return absolutely every movie.
+- Personal library stays browser-local: no accounts/sync until implemented separately.
+- Frontend-only local development uses Wikidata unless a personal token is supplied; production TMDB requires server configuration.
