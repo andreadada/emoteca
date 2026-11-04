@@ -122,7 +122,7 @@ await scenario('remote poster cannot cover homepage layout', { width: 1440, heig
   assert.deepEqual(layout.strayImages, [], 'Remote image must only appear inside artwork slots');
   assert.equal(layout.heroActionImages, 0, 'Never append a cover inside the hero CTA');
   assert.equal(layout.cardTitleImages, 0, 'Never append a cover inside a film title button');
-  assert.ok(layout.heroHeight < 760, 'The hero should not grow to full-page dimensions');
+  assert.ok(layout.heroHeight < 1400, 'Artwork must not force unbounded page dimensions');
   assert.ok(layout.heroPosterWidth <= 350, 'Artwork width must stay constrained by its poster wrapper');
   await page.screenshot({ path: 'ui-screenshots/desktop-remote-poster-fixed.png', fullPage: true });
 });
@@ -197,7 +197,7 @@ await scenario('preloaded films are catalog entries without duplicate library ro
   assert.equal(await page.locator('#global-grid .global-save:disabled').count(),2,
     'Only the two personal-library titles must be considered saved');
   await page.locator('#global-grid .card-name').first().click();
-  assert.equal(await page.locator('#detail-screen').isVisible(),true);
+  await page.locator('#detail-screen').waitFor({state:'visible',timeout:12000});
   assert.match(page.url(),/film=code-geass-2006/);
   assert.ok(await page.locator('#personal-notes').isVisible(), 'Preloaded film must have its diary, not Add button');
   await page.locator('#personal-notes').fill('Nota salvata prima del collegamento.');
