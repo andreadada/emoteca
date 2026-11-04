@@ -42,6 +42,12 @@ Le liste vivono separatamente nella **stessa** IndexedDB `state/personal-lists-v
 
 L'esempio mostra solo alcuni titoli. Nel primo avvio dopo l'aggiornamento, se la chiave delle liste non è presente, viene creata la lista iniziale con **tutti gli ID dei film salvati**, compresi i 35 o più già presenti nel browser. Gli ID film locali non vengono riscritti. Se il record liste è presente ma invalido, **non** viene sovrascritto automaticamente: mostrata una notifica di errore e fallback in memoria.
 
+### Protezione contro liste non leggibili (hotfix 4/11/2026)
+
+La validazione originale usava 64 caratteri anche per i **film ID**, mentre le schede film ne accettano fino a **90**. Ora `EmotecaLists.normalize` applica regole distinte: massimo 64 caratteri per gli ID delle raccolte e massimo 90 per gli ID dei film. Questa incompatibilità poteva generare il toast di caricamento senza che alcun film fosse perso.
+
+Per problemi diversi (record effettivamente invalido o errore di storage) l'app non tenta ripristini distruttivi: segnala il motivo effettivo, usa una vista temporanea e blocca modifiche delle liste; le note e i voti rimangono salvabili con la sola operazione film in IndexedDB, senza sovrascrivere il record liste originale. Il backup legge le liste direttamente da IndexedDB e, se non sono validate, aggiunge `backupWarning`. Non usare «Ripristina catalogo» o cancellare i dati del sito per eliminare il warning: prima esportare e diagnosticare la causa.
+
 Il fallback quando IndexedDB non è disponibile usa `localStorage/emoteca-personal-lists-v1`. Un salvataggio simultaneo di film+liste usa la transazione `CatalogDB.writeSnapshot` nel medesimo object store, per prevenire aggiornamenti parziali del database IndexedDB.
 
 ### Backup e importazione
