@@ -318,6 +318,7 @@ function tryCachedPoster(f){
   safeUrl(posterCache.get(f.id))||(!posterFailed.has(f.id)&&safeUrl(f.poster));
 }
 function shouldEnrichPoster(f){
+ if(!f)return false;
  const tmdb=window.EmotecaExplorer?.isEnabled?.();
  const cached=safeUrl(posterCache.get(f.id));
  return Boolean(f&&!posterTried.has(f.id)&&(
