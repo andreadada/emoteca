@@ -38,6 +38,12 @@ The previous version looked like a template: giant variable serif headlines, har
 
 **User trust:** no change to TMDB API semantics; no change to IndexedDB schemas, initial records, votes, notes, list IDs, or backups. Search should never pretend to know all films, or claim an unavailable poster exists.
 
+## Production integration and data-safety hotfix
+
+On 4 November 2026 the user reported that the production domain still showed the old dark design and warned that personal lists were unreadable, despite displaying 35 existing films. The redesign had not merged into `main`, so unchanged production styling was expected. Production CSS must be present in `Dockerfile` and respond 200 after Coolify deployment. Do not blame browser caching until this is checked.
+
+A pre-existing validation mismatch could cause the list warning: film IDs accept 90 chars; membership validation accepted only 64. It now uses dedicated patterns. If a list still cannot be validated, the UI reports the underlying error and enters a safe, read-only mode for memberships. Film-diary saves must not rewrite invalid raw memberships. Exported backups carry stored raw list data when readable, not an in-memory synthetic default list. A regression test checks both long film IDs and invalid persisted list preservation.
+
 ## Acceptance tests
 
 1. Original seed film list survives reload, independent of visual redesign.
