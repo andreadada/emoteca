@@ -366,3 +366,20 @@
  .film-trailer{width:100%;}
  .tmdb-score{margin-left:auto;}
 }
+
+
+/* The backdrop must actually show through; a legacy opaque film card hid it. */
+#detail-screen .detail-page-content,
+:root[data-theme="dark"] #detail-screen .detail-page-content {
+  background:transparent;
+}
+#detail-screen .detail-hero {
+  background:linear-gradient(90deg,rgba(10,17,19,.88) 0%,rgba(10,17,19,.65) 46%,rgba(10,17,19,.23) 100%);
+}
+:root[data-theme="dark"] #detail-screen .detail-hero {
+  background:linear-gradient(90deg,rgba(8,14,16,.91) 0%,rgba(8,14,16,.64) 45%,rgba(8,14,16,.16) 100%);
+}
+:root[data-theme="dark"] .detail-cinema-backdrop::after {
+  background:linear-gradient(90deg,rgba(6,12,14,.93) 0%,rgba(7,14,16,.65) 41%,rgba(8,15,17,.13) 100%),
+    linear-gradient(180deg,rgba(10,16,18,.06) 0%,rgba(10,16,18,.25) 55%,#0d1114 100%);
+}
