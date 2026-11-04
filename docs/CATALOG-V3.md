@@ -1,5 +1,7 @@
 # Emoteca 3.0 — Worldwide catalog architecture
 
+> **Stato canonico e operazioni (4/11/2026):** [PROJECT-HANDOFF.md](PROJECT-HANDOFF.md) · [DEPLOY-COOLIFY.md](DEPLOY-COOLIFY.md). Questa pagina documenta il funzionamento tecnico; deploy live e credenziale TMDB reale non risultano verificati.
+
 ## User goals
 
 The previous implementation only searched 34 locally saved titles, showed an external-search modal and had no guarantee of poster coverage. The new architecture introduces a dedicated browse/search page, linked film pages, rotating recommendations and server-side metadata access.
@@ -23,7 +25,7 @@ Avoid crawling IMDb's public website or redistributing their non-commercial TSV 
 
 ## Production deployment (Coolify)
 
-Existing public port **80** remains unchanged.
+Existing public port **80** remains unchanged. **Coolify build strategy must be Dockerfile**, base `/`, Dockerfile `/Dockerfile`, Ports Exposes `80`. Runtime secret `TMDB_READ_TOKEN` (Build-time OFF). Deployment instructions: [DEPLOY-COOLIFY.md](DEPLOY-COOLIFY.md).
 
 - Docker image: `nginx:stable-alpine` with `nodejs` installed.
 - `/opt/emoteca/catalog-api.mjs` listens on `127.0.0.1:8787`.
@@ -36,7 +38,7 @@ Existing public port **80** remains unchanged.
 
 - `GET /api/catalog/status` — `{provider,enabled,message}`.
 - `GET /api/catalog/search?q=...&page=1&type=all|movie|tv` — normalizes international search results, omits people/adult entries.
-- `GET /api/catalog/discover?page=1&type=movie|tv` — TMDB popularity-sorted browsing, paginated.
+- `GET /api/catalog/discover?page=1&type=all|movie|tv` — il valore `all` usa il feed TMDB `trending/all/week` (film e serie); movie/tv usano `/discover/{type}` ordinato per popolarità, paginato.
 - `GET /api/catalog/detail?type=movie|tv&id=123` — metadata and backdrop.
 - `GET /api/catalog/poster?title=...&year=2016&type=movie` — requires exact title/original-title and matching year for poster enrichment (avoid incorrect artwork).
 
@@ -63,7 +65,7 @@ Properties returned: stable provider ID, title, original title, year, film/TV ty
 
 ## Verification
 
-Node syntax and smoke tests:
+Node syntax, smoke and mock TMDB integration tests:
 
 ```bash
 node --test tests/*.test.mjs
@@ -71,7 +73,7 @@ node --test tests/*.test.mjs
 
 GitHub Actions `ui-e2e.yml` builds the actual Dockerfile, boots Nginx and the API proxy, runs Chromium desktop/mobile flows with simulated Wikidata results (to avoid flaky external dependencies), and uploads screenshots.
 
-Manual production acceptance checks after deploying with a real token:
+Manual production acceptance checks **still pending** after deploying with a real token:
 - `/api/catalog/status` shows `enabled:true`.
 - Search `Your Name`, `La dolce vita`, `Interstellar` and obscure Italian titles. Confirm localized and original titles work.
 - Change film/TV filter and page through results.
@@ -86,4 +88,5 @@ Manual production acceptance checks after deploying with a real token:
 - TMDB free usage is restricted to non-commercial use with attribution; commercial projects need a negotiated license.
 - TMDB caps certain result sets to 500 pages and results are ranked/filtered by API; no provider can return absolutely every movie.
 - Personal library stays browser-local: no accounts/sync until implemented separately.
+- The Nginx/Docker healthcheck currently confirms that the homepage responds, **not** that the Node catalog proxy can answer live requests; improve this as a P1 task.
 - Frontend-only local development uses Wikidata unless a personal token is supplied; production TMDB requires server configuration.
