@@ -240,7 +240,7 @@ await scenario('global theme toggle, Anime browsing and search reset', {width:14
     body:JSON.stringify({provider:'tmdb',enabled:true})
   }));
   await page.route('**/api/catalog/discover?**',route=>{
-    const url=new URL(route.request().url);urls.push(url);
+    const url=new URL(route.request().url());urls.push(url);
     const type=url.searchParams.get('type');
     const genres=url.searchParams.get('genres');
     const items=type==='anime'?[anime]:genres==='horror'?[horror]:[anime,horror];
@@ -248,7 +248,7 @@ await scenario('global theme toggle, Anime browsing and search reset', {width:14
       body:JSON.stringify({source:'TMDB',items,page:1,totalPages:2,totalResults:10})});
   });
   await page.route('**/api/catalog/search?**',route=>{
-    const url=new URL(route.request().url);urls.push(url);
+    const url=new URL(route.request().url());urls.push(url);
     const items=url.searchParams.get('type')==='anime'?[anime]:[anime,horror];
     return route.fulfill({status:200,contentType:'application/json',
       body:JSON.stringify({source:'TMDB',items,page:1,totalPages:2,totalResults:null,filteredSearch:true})});
