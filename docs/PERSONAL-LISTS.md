@@ -1,6 +1,6 @@
 # Emoteca — Liste personali multiple
 
-**Versione:** 4 novembre 2026. **Stato:** implementazione nel branch `feat/multiple-personal-lists`; verificare il merge in `main` e il deploy prima di dichiararla online.
+**Versione:** 4 novembre 2026. **Stato:** implementazione unita a `main` con [PR #9](https://github.com/andreadada/emoteca/pull/9), commit funzionale `2b787e5`. Il deploy e la prova in produzione su Coolify restano da verificare.
 
 ## Modello del prodotto
 
