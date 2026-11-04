@@ -117,6 +117,14 @@ Nota legale: TMDB richiede attribuzione ed ha un utilizzo gratuito previsto per 
 
 **Controlli:** test Node e browser TMDB simulati aggiunti; verificare CI e PR prima di dare per acquisito il merge. Dopo redeploy Coolify sul dominio `https://film.ddone.it`, testare almeno Code Geass e Your Name per il riconoscimento, e un film non salvato per l'assenza di falsi positivi. Confermare eventuali titoli ancora privi di `catalogId` con dati reali. La presenza del token TMDB reale in Coolify non è verificata da questa sessione.
 
+## UI libreria — filtri per temi e ricerca locale (4 novembre 2026)
+
+**Richiesta:** togliere il vecchio select `Tutti i temi` a destra dei formati e riposizionare i temi **sotto** le categorie, con mini-pulsanti selezionabili come tag, incluso **Horror**. Mettere una barra **Cerca nella tua libreria** a sinistra e una **X** per cancellare tutti i filtri. Il campo di ricerca globale nella testata continua invece a cercare nel catalogo mondiale TMDB/Wikidata.
+
+**Implementazione in branch `feat/library-theme-tag-filters`:** la toolbar locale ha tre livelli (formati, temi/generi multi-toggle, ricerca locale/ordinamento/reset); i temi sono generati dai `tags` e dalle componenti del campo `genre`, con Horror sempre offerto. Più temi si combinano con OR tra loro e con AND rispetto a categoria e testo. `Tutti i temi` deseleziona i temi; la X ripristina formato, temi, ricerca locale e ordinamento. Sono previste label accessibili, `aria-pressed`, focus visibile, wrapping su mobile e test Node/Chromium.
+
+**Stato:** controllare PR, test CI ed eventuale merge prima di considerare il cambiamento già pubblicato. Nessuna modifica ai dati IndexedDB, ai 34 seed o al proxy TMDB. Serve sempre il redeploy Coolify e un controllo sul dominio reale.
+
 ## 4. Cosa fare ADESSO — roadmap prioritaria
 
 ### P0 — Portare online e validare

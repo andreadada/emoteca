@@ -51,7 +51,7 @@ test('Semantic architecture replaces the old dashboard UI', () => {
   const css = read('styles-cinema.css');
   for (const id of ['page-title', 'hero', 'reel-section', 'editorial-rail',
     'collection-section', 'section-title', 'film-grid', 'library-meta',
-    'results-count', 'type-filters', 'sort-filter', 'tag-filter']) {
+    'results-count', 'type-filters', 'sort-filter', 'theme-filters', 'library-search', 'clear-library-filters']) {
     assert.ok(html.includes('id="' + id + '"'), 'Missing redesigned view element ' + id);
   }
   assert.ok(html.includes('class="site-nav"'), 'Navigation should be horizontal');
@@ -134,8 +134,8 @@ test('Remote poster refresh only modifies image slots, never action buttons', ()
   assert.ok(css.includes('.feature-poster > .poster-image'));
   assert.ok(css.includes('.detail-poster > .poster-image'));
   const html = read('index.html');
-  assert.ok(html.includes('styles-cinema.css?v=20261104-posterfix'));
-  assert.ok(html.includes('js/app.js?v=20261104-seedlink'));
+  assert.ok(html.includes('styles-cinema.css?v=20261104-libraryfilters'));
+  assert.ok(html.includes('js/app.js?v=20261104-libraryfilters'));
 });
 
 test('Catalog identity deduplicates legacy seeds and protects personal history', () => {
@@ -190,6 +190,30 @@ test('Catalog identity deduplicates legacy seeds and protects personal history',
   assert.equal(identity.chooseSeedMatch(naruto,[{...source,year:2007}],'Naruto'),null);
   assert.equal(identity.chooseSeedMatch(code,[remote],'Code Geass: Hangyaku no Lelouch')?.id,remote.id);
   assert.equal(identity.chooseSeedMatch(code,[{...remote,id:'tmdb-tv-2',year:2007}],'Code Geass'),null);
+});
+
+test('Library filters use multi-select theme tags, Horror, local search and clear-all', () => {
+  const html=read('index.html');
+  const app=read('js/app.js');
+  const css=read('styles-cinema.css');
+  assert.ok(html.indexOf('id="type-filters"') < html.indexOf('id="theme-filters"'), 'Genres must appear below format tabs');
+  assert.ok(html.indexOf('id="theme-filters"') < html.indexOf('id="library-search"'), 'Search follows thematic chips');
+  for(const id of ['theme-filters','library-search','clear-library-filters']) {
+    assert.ok(html.includes('id="'+id+'"'), 'Missing filter control: '+id);
+  }
+  assert.ok(html.includes('data-theme="all"'), 'All themes reset control must be present');
+  assert.ok(html.includes('data-action="clear-filters"'), 'Clear filters action must be wired');
+  assert.ok(!html.includes('id="tag-filter"'), 'Legacy select must be removed');
+  assert.ok(app.includes("selectedThemes=new Set()"), 'Theme selection needs an independent multi-select set');
+  assert.ok(app.includes("selectedThemes.has(theme)"), 'Theme toggles must support disabling individual tags');
+  assert.ok(app.includes("['horror',...films.flatMap(themeValues)]"), 'Horror is always offered even without matches');
+  assert.ok(app.includes("String(f.genre||'').split("), 'Filtering must inspect movie genre as well as custom tags');
+  assert.ok(app.includes("$('#library-search').addEventListener('input'"), 'Search filters the saved library in real time');
+  assert.ok(app.includes("function clearLibraryFilters()"), 'The X clears all local filter dimensions');
+  assert.ok(app.includes("query='';") && app.includes("selectedThemes.clear()"));
+  assert.ok(css.includes('.theme-tag.active') && css.includes('.library-searchbox'));
+  assert.ok(html.includes('styles-cinema.css?v=20261104-libraryfilters'));
+  assert.ok(html.includes('js/app.js?v=20261104-libraryfilters'));
 });
 
 test('Preserve original IndexedDB name and JSON backup format', () => {

@@ -227,6 +227,65 @@ await scenario('preloaded films are catalog entries without duplicate library ro
   await page.screenshot({path:'ui-screenshots/global-and-seed-linked.png',fullPage:true});
 });
 
+await scenario('library genre chips and clear-all filter UI', { width: 1440, height: 900 }, async page => {
+  await page.evaluate(async () => {
+    await window.AfterframeCatalog.addExternal({
+      id:'library-horror-test-2025',title:'Horror Lab',year:2025,type:'film',
+      genre:'Horror · Thriller',tags:['mistero'],status:'watchlist',reaction:'unseen',
+      poster:'',description:'Film inserito per verificare filtri e ricerca.'
+    });
+  });
+  await page.locator('.nav-link[data-view="all"]').click();
+  assert.equal(await page.locator('#tag-filter').count(),0, 'Old theme dropdown removed');
+  assert.ok(await page.locator('#theme-filters [data-theme="all"]').isVisible());
+  assert.ok(await page.locator('#theme-filters [data-theme="horror"]').isVisible());
+  assert.ok(await page.locator('#library-search').isVisible());
+  assert.equal(await page.locator('#clear-library-filters').isDisabled(),true);
+  const layout=await page.evaluate(()=>({
+    categories:document.querySelector('#type-filters').getBoundingClientRect().top,
+    themes:document.querySelector('#theme-filters').getBoundingClientRect().top,
+    search:document.querySelector('#library-search').getBoundingClientRect().top
+  }));
+  assert.ok(layout.categories<layout.themes && layout.themes<layout.search,
+    'Categories, themes, and search must appear in distinct stacked rows');
+
+  await page.locator('#type-filters [data-type="film"]').click();
+  await page.locator('#theme-filters [data-theme="horror"]').click();
+  assert.equal(await page.locator('#theme-filters [data-theme="horror"]').getAttribute('aria-pressed'),'true');
+  assert.equal(await page.locator('#film-grid .film-card').count(),1);
+  assert.equal(await page.locator('#film-grid .card-name').first().textContent(),'Horror Lab');
+
+  // Tags are inclusive OR; the film format remains a separate AND filter.
+  await page.locator('#theme-filters [data-theme="fantasy"]').click();
+  assert.ok((await page.locator('#film-grid .film-card').count())>1);
+  await page.locator('#library-search').fill('horror lab');
+  assert.equal(await page.locator('#film-grid .film-card').count(),1);
+  assert.equal(await page.locator('#search').inputValue(),'',
+    'Local search must not change the header global search');
+  await page.screenshot({path:'ui-screenshots/desktop-theme-chips.png',fullPage:true});
+
+  await page.locator('#sort-filter').selectOption('newest');
+  await page.locator('#clear-library-filters').click();
+  assert.equal(await page.locator('#library-search').inputValue(),'');
+  assert.equal(await page.locator('#type-filters [data-type="all"]').getAttribute('aria-pressed'),'true');
+  assert.equal(await page.locator('#theme-filters [data-theme="all"]').getAttribute('aria-pressed'),'true');
+  assert.equal(await page.locator('#theme-filters [aria-pressed="true"]').count(),1);
+  assert.equal(await page.locator('#sort-filter').inputValue(),'match');
+  assert.equal(await page.locator('#clear-library-filters').isDisabled(),true);
+  assert.equal(await page.locator('#film-grid .film-card').count(),35);
+});
+
+await scenario('mobile library tag filters do not overflow', { width: 390, height: 844 }, async page => {
+  await page.locator('.nav-link[data-view="all"]').click();
+  await page.locator('#theme-filters [data-theme="horror"]').click();
+  assert.equal(await page.locator('#theme-filters [data-theme="horror"]').getAttribute('aria-pressed'),'true');
+  const overflow=await page.evaluate(()=>document.documentElement.scrollWidth-window.innerWidth);
+  assert.ok(overflow<=1,'Theme filters must wrap on mobile, overflow='+overflow);
+  await page.screenshot({path:'ui-screenshots/mobile-theme-chips.png',fullPage:true});
+  await page.locator('#clear-library-filters').click();
+  assert.equal(await page.locator('#theme-filters [data-theme="all"]').getAttribute('aria-pressed'),'true');
+});
+
 await scenario('mobile navigation, catalog and full film page', { width: 390, height: 844 }, async page => {
   await wikidataStub(page);
   assert.equal(await page.locator('.site-nav').isVisible(), true);

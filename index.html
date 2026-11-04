@@ -7,11 +7,11 @@
   <meta name="description" content="Emoteca: esplora il cinema e costruisci la tua libreria personale di film, anime e serie." />
   <title>Emoteca — La tua libreria di cinema</title>
   <link rel="icon" type="image/svg+xml" href="assets/favicon.svg" />
-  <link rel="stylesheet" href="styles-cinema.css?v=20261104-posterfix" />
+  <link rel="stylesheet" href="styles-cinema.css?v=20261104-libraryfilters" />
   <script src="js/data.js" defer></script>
   <script src="js/db.js" defer></script>
   <script src="js/catalog-identity.js?v=20261104-seedlink" defer></script>
-  <script src="js/app.js?v=20261104-seedlink" defer></script>
+  <script src="js/app.js?v=20261104-libraryfilters" defer></script>
   <script src="js/remote-catalog.js?v=20261104-seedlink" defer></script>
 </head>
 <body>
@@ -110,18 +110,35 @@
               <button class="pill" type="button" data-type="film-anime" aria-pressed="false">Film anime</button>
               <button class="pill" type="button" data-type="film-animazione" aria-pressed="false">Animazione</button>
             </div>
-            <div class="toolbar-selects">
-              <label for="tag-filter" class="visually-hidden">Filtra per tema</label>
-              <select id="tag-filter" name="tag-filter"><option value="all">Tutti i temi</option></select>
-              <label for="sort-filter" class="visually-hidden">Ordina titoli</label>
-              <select id="sort-filter" name="sort-filter">
-                <option value="match">Ordine editoriale</option>
-                <option value="newest">Più recenti</option>
-                <option value="oldest">Meno recenti</option>
-                <option value="title">Titolo A–Z</option>
-                <option value="rating">Voto personale</option>
-                <option value="emotion">Profilo emozionale</option>
-              </select>
+            <div class="theme-filter-section">
+              <div class="theme-filter-heading">
+                <span>Temi e generi</span>
+                <span class="theme-filter-hint">Seleziona uno o più tag</span>
+              </div>
+              <div id="theme-filters" class="theme-tags" role="group" aria-label="Filtra per temi e generi">
+                <button class="theme-tag active" type="button" data-theme="all" aria-pressed="true">Tutti i temi</button>
+              </div>
+            </div>
+            <div class="library-tools-row">
+              <label class="library-searchbox" for="library-search">
+                <svg aria-hidden="true"><use href="#i-search"/></svg>
+                <span class="visually-hidden">Cerca nella tua libreria</span>
+                <input id="library-search" type="search" autocomplete="off" spellcheck="false" placeholder="Cerca nella tua libreria…" />
+              </label>
+              <div class="library-tools-actions">
+                <label for="sort-filter" class="visually-hidden">Ordina titoli</label>
+                <select id="sort-filter" name="sort-filter" aria-label="Ordina titoli">
+                  <option value="match">Ordine editoriale</option>
+                  <option value="newest">Più recenti</option>
+                  <option value="oldest">Meno recenti</option>
+                  <option value="title">Titolo A–Z</option>
+                  <option value="rating">Voto personale</option>
+                  <option value="emotion">Profilo emozionale</option>
+                </select>
+                <button id="clear-library-filters" class="clear-library-filters" type="button" data-action="clear-filters" aria-label="Cancella ricerca e tutti i filtri" title="Cancella tutti i filtri" disabled>
+                  <svg aria-hidden="true"><use href="#i-close"/></svg>
+                </button>
+              </div>
             </div>
           </div>
 
