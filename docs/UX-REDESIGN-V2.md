@@ -1,4 +1,6 @@
-# Emoteca UX 2.0 — Cinema-first redesign
+# Emoteca UX 2.0 — Cinema-first redesign (documento storico)
+
+> **Documento storico, non è lo stato finale del prodotto.** Emoteca **v3** ha aggiunto un catalogo globale e una **pagina film dedicata** al posto del popup; alcuni flussi, menu e diagrammi descritti qui sono superati. Per riprendere il lavoro usa [PROJECT-HANDOFF.md](PROJECT-HANDOFF.md), [CATALOG-V3.md](CATALOG-V3.md) e il codice `main`. Il deploy effettivo Coolify non è confermato.
 
 ## Decisione
 
