@@ -8,14 +8,14 @@ import { fileURLToPath } from 'node:url';
 const read = (file) => readFileSync(new URL('../' + file, import.meta.url), 'utf8');
 
 test('All browser scripts parse as JavaScript', () => {
-  for (const file of ['js/data.js', 'js/db.js', 'js/app.js', 'js/remote-catalog.js']) {
+  for (const file of ['js/data.js', 'js/db.js', 'js/catalog-identity.js', 'js/app.js', 'js/remote-catalog.js']) {
     assert.doesNotThrow(() => new Script(read(file), { filename: file }));
   }
 });
 
 test('App loads the explorer and cinematic stylesheet after core assets', () => {
   const html = read('index.html');
-  for (const file of ['styles-cinema.css', 'js/data.js', 'js/db.js', 'js/app.js', 'js/remote-catalog.js']) {
+  for (const file of ['styles-cinema.css', 'js/data.js', 'js/db.js', 'js/catalog-identity.js', 'js/app.js', 'js/remote-catalog.js']) {
     assert.ok(existsSync(new URL('../' + file, import.meta.url)), 'Missing ' + file);
     assert.ok(html.includes(file), 'HTML does not include ' + file);
   }
@@ -24,6 +24,7 @@ test('App loads the explorer and cinematic stylesheet after core assets', () => 
     assert.ok(html.includes('id="' + id + '"'), 'Missing new catalog control ' + id);
   }
   assert.ok(html.indexOf('js/app.js') < html.indexOf('js/remote-catalog.js'));
+  assert.ok(html.indexOf('js/catalog-identity.js') < html.indexOf('js/app.js'), 'Identity must load before app');
   assert.ok(html.includes('data-action="add"'), 'Manual entry must remain accessible');
   assert.ok(html.includes('This product uses the TMDB API but is not endorsed or certified by TMDB.'));
   assert.ok(html.includes('blue_square_2-'), 'TMDB attribution must contain approved logo');
@@ -134,7 +135,61 @@ test('Remote poster refresh only modifies image slots, never action buttons', ()
   assert.ok(css.includes('.detail-poster > .poster-image'));
   const html = read('index.html');
   assert.ok(html.includes('styles-cinema.css?v=20261104-posterfix'));
-  assert.ok(html.includes('js/app.js?v=20261104-posterfix'));
+  assert.ok(html.includes('js/app.js?v=20261104-seedlink'));
+});
+
+test('Catalog identity deduplicates legacy seeds and protects personal history', () => {
+  const context = createContext({window:{}});
+  new Script(read('js/catalog-identity.js')).runInContext(context);
+  const identity = context.window.EmotecaIdentity;
+  const code = {id:'code-geass-2006', title:'Code Geass: Lelouch of the Rebellion',
+    posterQuery:'Code Geass: Hangyaku no Lelouch',year:2006,type:'anime',
+    status:'watched',reaction:'cried',rating:10,notes:'Una nota privata',
+    description:'Sinossi editoriale',genre:'Fantascienza',poster:'https://example.org/cover.jpg',
+    links:[],tags:['morale'],favorite:true};
+  const remote = {id:'tmdb-tv-32123',sourceId:'32123',provider:'tmdb',
+    type:'serie',media:'tv',title:'Code Geass: Lelouch of the Rebellion',
+    year:2006,description:'Sinossi esterna',genre:'Animation · Sci-Fi',
+    poster:'https://image.tmdb.org/t/p/w500/code.jpg',
+    backdrop:'https://image.tmdb.org/t/p/w1280/back.jpg',
+    sourceUrl:'https://www.themoviedb.org/tv/32123'};
+  assert.equal(identity.findSaved([code],remote)?.id,code.id);
+  const enriched=identity.enrichSaved(code,remote,code);
+  assert.equal(enriched.id,code.id, 'local bookmark URLs remain stable');
+  assert.equal(enriched.catalogId,remote.id);
+  assert.equal(enriched.description,'Sinossi esterna');
+  assert.equal(enriched.poster,remote.poster);
+  assert.equal(enriched.status,'watched');
+  assert.equal(enriched.reaction,'cried');
+  assert.equal(enriched.rating,10);
+  assert.equal(enriched.notes,'Una nota privata');
+  assert.equal(enriched.favorite,true);
+  assert.equal(enriched.tags[0],'morale');
+  assert.equal(enriched.links.length,1);
+  assert.equal(identity.findSaved([enriched],remote)?.id,code.id);
+
+  // A legitimate manual edit must win over automated catalog enrichment.
+  const changed={...code,description:'Testo modificato da me',poster:'https://example.org/custom.jpg'};
+  const keep=identity.enrichSaved(changed,remote,code);
+  assert.equal(keep.description,'Testo modificato da me');
+  assert.equal(keep.poster,'https://example.org/custom.jpg');
+
+  // Year and medium matter. A 2026 film must not match a 2002 film
+  // or a TV show with the same marketing name.
+  const older={id:'tmdb-movie-27',type:'film',media:'movie',title:'Resident Evil',year:2002};
+  const newer={id:'tmdb-movie-29',type:'film',media:'movie',title:'Resident Evil',year:2026};
+  assert.equal(identity.findSaved([older],newer),null);
+  assert.equal(identity.findSaved([older],{...older,id:'tmdb-tv-99',media:'tv',type:'serie'}),null);
+
+  // Anime is a TV category inside the personal library, but TV on TMDB.
+  const naruto={id:'naruto-2002',type:'anime',year:2002,
+    title:'Naruto / Naruto Shippuden',posterQuery:'Naruto'};
+  const source={id:'tmdb-tv-123',provider:'tmdb',type:'serie',media:'tv',title:'Naruto',year:2002};
+  assert.equal(identity.findSaved([naruto],source)?.id,'naruto-2002');
+  assert.equal(identity.chooseSeedMatch(naruto,[source],'Naruto')?.id,'tmdb-tv-123');
+  assert.equal(identity.chooseSeedMatch(naruto,[{...source,year:2007}],'Naruto'),null);
+  assert.equal(identity.chooseSeedMatch(code,[remote],'Code Geass: Hangyaku no Lelouch')?.id,remote.id);
+  assert.equal(identity.chooseSeedMatch(code,[{...remote,id:'tmdb-tv-2',year:2007}],'Code Geass'),null);
 });
 
 test('Preserve original IndexedDB name and JSON backup format', () => {
