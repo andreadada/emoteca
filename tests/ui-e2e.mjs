@@ -66,7 +66,7 @@ await scenario('desktop movie and diary route', { width: 1440, height: 900 }, as
   }
 
   await page.locator('.nav-link[data-view="all"]').click();
-  assert.equal(await page.locator('#section-title').textContent(), 'La libreria');
+  assert.equal(await page.locator('#section-title').textContent(), 'La mia lista');
   await page.screenshot({ path: 'ui-screenshots/desktop-library.png', fullPage: true });
 
   await page.locator('#film-grid .card-name').first().click();
@@ -361,6 +361,95 @@ await scenario('mobile library tag filters do not overflow', { width: 390, heigh
   await page.screenshot({path:'ui-screenshots/mobile-theme-chips.png',fullPage:true});
   await page.locator('#clear-library-filters').click();
   assert.equal(await page.locator('#theme-filters [data-theme="all"]').getAttribute('aria-pressed'),'true');
+});
+
+
+await scenario('personal lists migrate, create, rename and delete safely', {width:1440,height:900}, async page=>{
+  await page.locator('.nav-link[data-view="all"]').click();
+  assert.equal(await page.locator('#section-title').textContent(),'La mia lista');
+  assert.equal(await page.locator('#film-grid .film-card').count(),34);
+  assert.equal((await page.evaluate(async()=>window.CatalogDB.readLists()))[0].filmIds.length,34);
+  await page.locator('[data-action="create-list"]').click();
+  await page.locator('#list-name-input').fill('Serata horror');
+  await page.locator('#list-form button[type="submit"]').click();
+  await page.waitForFunction(()=>document.querySelector('#section-title')?.textContent==='Serata horror');
+  assert.equal(await page.locator('#section-title').textContent(),'Serata horror');
+  assert.equal(await page.locator('#film-grid .film-card').count(),0);
+  const listId=await page.evaluate(async()=>(await window.CatalogDB.readLists())[1].id);
+  await page.locator('.nav-link[data-view="watchlist"]').click();
+  const filmId=await page.locator('#film-grid .card-name').first().getAttribute('data-open');
+  await page.locator('#film-grid .card-name').first().click();
+  const chip=page.locator('[data-action="toggle-list-membership"][data-list-id="'+listId+'"]');
+  assert.equal(await chip.getAttribute('aria-pressed'),'false');
+  await chip.click();
+  await page.waitForFunction(id=>document.querySelector('[data-action="toggle-list-membership"][data-list-id="'+id+'"]')?.getAttribute('aria-pressed')==='true',listId);
+  assert.equal(await chip.getAttribute('aria-pressed'),'true');
+  await page.locator('[data-action="back-detail"]').click();
+  await page.locator('.nav-link[data-view="all"]').click();
+  assert.equal(await page.locator('#film-grid .film-card').count(),1);
+  assert.equal(await page.locator('#film-grid .card-name').first().getAttribute('data-open'),filmId);
+  await page.screenshot({path:'ui-screenshots/desktop-personal-lists.png',fullPage:true});
+  await page.locator('#film-grid [data-action="remove-from-list"]').first().click();
+  await page.waitForFunction(()=>document.querySelectorAll('#film-grid .film-card').length===0);
+  assert.equal(await page.locator('#film-grid .film-card').count(),0);
+  assert.equal((await page.evaluate(async()=>window.CatalogDB.read())).length,34);
+  assert.equal((await page.evaluate(async()=>window.CatalogDB.readLists()))[0].filmIds.length,34);
+  await page.locator('[data-action="rename-list"]').click();
+  await page.locator('#list-name-input').fill('Cinema del weekend');
+  await page.locator('#list-form button[type="submit"]').click();
+  await page.waitForFunction(()=>document.querySelector('#section-title')?.textContent==='Cinema del weekend');
+  assert.equal(await page.locator('#section-title').textContent(),'Cinema del weekend');
+  page.once('dialog',dialog=>dialog.accept());
+  await page.locator('[data-action="delete-list"]').click();
+  await page.waitForFunction(()=>document.querySelectorAll('#personal-list-tabs .personal-list-tab').length===1);
+  assert.equal(await page.locator('#personal-list-tabs .personal-list-tab').count(),1);
+  assert.equal(await page.locator('#section-title').textContent(),'La mia lista');
+  assert.equal(await page.locator('#film-grid .film-card').count(),34);
+  await page.reload({waitUntil:'domcontentloaded'});
+  await page.locator('.nav-link[data-view="all"]').click();
+  assert.equal((await page.evaluate(async()=>window.CatalogDB.readLists())).length,1);
+});
+
+await scenario('new global film can be saved directly to a chosen list', {width:1440,height:900}, async page=>{
+  await wikidataStub(page);
+  await page.locator('.nav-link[data-view="all"]').click();
+  await page.locator('[data-action="create-list"]').click();
+  await page.locator('#list-name-input').fill('Film con amici');
+  await page.locator('#list-form button[type="submit"]').click();
+  await page.waitForFunction(()=>document.querySelector('#section-title')?.textContent==='Film con amici');
+  const target=await page.evaluate(async()=>(await window.CatalogDB.readLists())[1].id);
+  await page.locator('.nav-link[data-view="explore"]').click();
+  await page.locator('#catalog-query').fill('Prova del catalogo');
+  await page.locator('#global-grid .card-name').first().waitFor({timeout:14000});
+  await page.locator('#global-grid .card-name').first().click();
+  await page.locator('#preview-target-list').selectOption(target);
+  await page.locator('.detail-intro [data-action="add-preview"]').click();
+  await page.waitForFunction(async id=>{
+    const lists=await window.CatalogDB.readLists();
+    return lists.some(list=>list.id===id&&list.filmIds.includes('wikidata-q123456'));
+  },target);
+  const lists=await page.evaluate(async()=>window.CatalogDB.readLists());
+  assert.equal(lists[0].filmIds.length,34,'Catalog import must not silently change default list');
+  assert.deepEqual(lists[1].filmIds,['wikidata-q123456']);
+  const rows=await page.evaluate(async()=>window.CatalogDB.read());
+  assert.equal(rows.length,35);
+  assert.equal(rows.filter(f=>f.id==='wikidata-q123456').length,1);
+  await page.locator('[data-action="back-detail"]').click();
+  await page.locator('.nav-link[data-view="all"]').click();
+  assert.equal(await page.locator('#section-title').textContent(),'Film con amici');
+  assert.equal(await page.locator('#film-grid .film-card').count(),1);
+});
+
+await scenario('mobile personal lists do not overflow', {width:390,height:844}, async page=>{
+  await page.locator('.nav-link[data-view="all"]').click();
+  await page.locator('[data-action="create-list"]').click();
+  await page.locator('#list-name-input').fill('Anime da rivedere');
+  await page.locator('#list-form button[type="submit"]').click();
+  await page.waitForFunction(()=>document.querySelector('#section-title')?.textContent==='Anime da rivedere');
+  assert.equal(await page.locator('#section-title').textContent(),'Anime da rivedere');
+  const overflow=await page.evaluate(()=>document.documentElement.scrollWidth-window.innerWidth);
+  assert.ok(overflow<=1,'Personal list navigation overflow '+overflow+'px');
+  await page.screenshot({path:'ui-screenshots/mobile-personal-lists.png',fullPage:true});
 });
 
 await scenario('mobile navigation, catalog and full film page', { width: 390, height: 844 }, async page => {

@@ -663,3 +663,56 @@ button, a { touch-action: manipulation; -webkit-tap-highlight-color: rgba(201,17
  .catalog-search-section .catalog-search-row svg { width:15px;height:15px; }
  .catalog-search-section .catalog-clear-filters { width:41px; }
 }
+
+
+/* Personal collections: intentionally distinct from the worldwide TMDB catalog. */
+.personal-lists { padding:25px 0 20px;border-bottom:1px solid var(--rule); }
+.personal-lists-topline { display:flex;justify-content:space-between;align-items:center;gap:16px;margin-bottom:18px; }
+.list-section-label { font-size:12px;color:#bdb2a5;font-weight:700; }
+.new-list-button { appearance:none;display:inline-flex;align-items:center;gap:8px;background:#dfc6a6;color:#201b18;border:1px solid #dfc6a6;border-radius:2px;min-height:38px;padding:0 15px;font-size:11px;font-weight:750; }
+.new-list-button:hover { background:#f0d8b7; }
+.new-list-button svg { width:15px;height:15px;stroke:currentColor;fill:none;stroke-width:2; }
+.personal-lists-nav { display:flex;flex-wrap:wrap;gap:9px;min-width:0; }
+.personal-list-tab { appearance:none;display:inline-flex;align-items:center;gap:16px;max-width:100%;border:1px solid #504943;background:#22201f;color:#c2b8ac;border-radius:2px;min-height:42px;padding:0 12px;font-size:12px;font-weight:650; }
+.personal-list-tab:hover { border-color:#ab9074;color:#f6eee4; }
+.personal-list-tab.active { background:#352d25;color:#f1e3d0;border-color:#c9a884; }
+.personal-list-tab span:first-child { overflow:hidden;text-overflow:ellipsis;white-space:nowrap; }
+.list-tab-count { color:#b9ac9c;font-size:10px;font-variant-numeric:tabular-nums; }
+.personal-list-management { display:flex;gap:17px;align-items:center;margin-top:13px; }
+.personal-list-management[hidden],.personal-lists[hidden] { display:none!important; }
+.personal-list-management button { background:none;border:0;color:#a89d91;text-decoration:underline;text-underline-offset:4px;padding:4px 0;font-size:11px; }
+.personal-list-management button:hover { color:#e8d0b2; }
+.personal-list-management button[data-action="delete-list"] { color:#e1b4a5; }
+.card-remove-list { appearance:none;text-align:left;border:0;background:none;color:#a79b8f;font-size:10px;padding:9px 0 0;min-height:27px; }
+.card-remove-list:hover { color:#e4c1a3;text-decoration:underline;text-underline-offset:3px; }
+.film-lists { margin-top:23px;max-width:660px; }
+.film-lists-label { font-size:12px;font-weight:700;color:#ebd6bc;margin:0 0 11px; }
+.film-lists-chips { display:flex;flex-wrap:wrap;gap:8px; }
+.film-list-chip { appearance:none;display:inline-flex;align-items:center;gap:7px;max-width:100%;min-height:35px;padding:8px 12px;border:1px solid #6e5e4d;border-radius:2px;background:#252220;color:#d5c1ac;font-size:11px; }
+.film-list-chip.selected { color:#1d1a18;background:#e5ceb1;border-color:#e5ceb1;font-weight:750; }
+.film-list-chip:hover { border-color:#f0d3ab; }
+.film-lists-help { font-size:11px;color:#9c9085;line-height:1.5;margin:12px 0 0; }
+.list-modal { max-width:520px; }
+.list-name-label { display:block;font-size:12px;color:#dcd0c2;font-weight:650;margin:26px 0 10px; }
+#list-name-input { width:100%;min-height:50px;padding:12px 15px;border:1px solid #736659;color:#f7eee4;background:#211f1e;font-size:15px;outline:none; }
+#list-name-input:focus { border-color:#d7b58c;box-shadow:0 0 0 1px #d7b58c; }
+.list-dialog-note { color:#a79d92;font-size:12px;line-height:1.7;margin:16px 0 24px; }
+.list-dialog-actions { display:flex;align-items:center;justify-content:flex-end;gap:10px; }
+@media(max-width:760px) {
+ .personal-lists { padding:18px 0; }
+ .personal-lists-topline { margin-bottom:13px; }
+ .new-list-button { min-height:38px;padding:0 11px; }
+ .personal-list-tab { min-height:40px;padding:0 10px;gap:11px; }
+ .personal-lists-nav { gap:7px; }
+ .card-remove-list { font-size:10px; }
+ .film-lists { margin-top:19px; }
+}
+@media(max-width:460px) {
+ .personal-lists-topline { gap:8px; }
+ .personal-list-tab { font-size:11px; }
+ .list-dialog-actions { flex-wrap:wrap; }
+}
+
+.preview-list-label { display:block;margin:17px 0 8px;font-size:12px;color:#dfc6a6;font-weight:650; }
+.preview-target-list { min-width:210px;max-width:100%;padding:10px 12px;min-height:42px;border:1px solid #756756;background:#211f1d;color:#f2e5d7;font-size:12px; }
+.preview-target-list:focus-visible { outline:2px solid #e0b98a;outline-offset:2px; }

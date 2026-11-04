@@ -10,6 +10,14 @@ Una libreria cinematografica personale in HTML, CSS e JavaScript puro. Parte da 
 
 **Nota di stato (4/11/2026):** codice v3 e CI verificati su GitHub; **deploy reale, dominio e token TMDB di produzione non verificati**. Non confondere i test con provider simulato con una prova live.
 
+## Le mie liste — raccolte personali multiple
+
+**La mia libreria** è stata sostituita da **Le mie liste**: il catalogo mondiale è già in **Tutti i film**. Ora la raccolta iniziale si chiama **La mia lista** e contiene tutti i titoli già salvati. Puoi creare più liste con nome personale, rinominarle ed eliminarle senza cancellare i film o le note. Un titolo può appartenere a più raccolte, con la stessa scheda, stesso voto e stato «visto».
+
+Puoi rimuovere un film dalla lista corrente con **Rimuovi dalla lista**, assegnarlo a più liste tramite i chip nella pagina film o scegliere la lista destinazione quando importi un nuovo film dal catalogo mondiale. Il diario personale resta condiviso fra tutte le liste. **Da guardare**, **Visti** e **Preferiti** rimangono viste globali dei film già salvati.
+
+Le liste sono memorizzate in una nuova chiave nella IndexedDB esistente, senza migrazione distruttiva. Il backup JSON ora include sia `films` sia `lists`; i backup vecchi rimangono importabili. Leggi [docs/PERSONAL-LISTS.md](docs/PERSONAL-LISTS.md) per architettura, limiti e test.
+
 ## Filtri della libreria personale
 
 Sotto i formati (Tutti, Film, Serie, Anime, Film anime, Animazione), la libreria propone i **temi e i generi come mini-tag selezionabili**, incluso **Horror**. Puoi attivarne più di uno: all'interno dei temi la selezione è inclusiva (OR), mentre formato e ricerca locale restringono i risultati (AND). `Tutti i temi` deseleziona i tag; la **X** a fianco dell'ordinamento azzera formato, temi, testo cercato e ordinamento.
