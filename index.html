@@ -7,12 +7,12 @@
   <meta name="description" content="Emoteca: esplora il cinema e costruisci la tua libreria personale di film, anime e serie." />
   <title>Emoteca — La tua libreria di cinema</title>
   <link rel="icon" type="image/svg+xml" href="assets/favicon.svg" />
-  <link rel="stylesheet" href="styles-cinema.css?v=20261104-libraryfilters" />
+  <link rel="stylesheet" href="styles-cinema.css?v=20261104-globaltags" />
   <script src="js/data.js" defer></script>
   <script src="js/db.js" defer></script>
   <script src="js/catalog-identity.js?v=20261104-seedlink" defer></script>
   <script src="js/app.js?v=20261104-libraryfilters" defer></script>
-  <script src="js/remote-catalog.js?v=20261104-seedlink" defer></script>
+  <script src="js/remote-catalog.js?v=20261104-globaltags" defer></script>
 </head>
 <body>
   <a class="skip-link" href="#main">Vai al contenuto</a>
@@ -163,22 +163,54 @@
           </div>
           <p class="catalog-scope" id="catalog-status" role="status" aria-live="polite">Connessione al catalogo…</p>
         </div>
-        <form class="catalog-search" id="catalog-search-form" role="search">
-          <label for="catalog-query">Cerca nel catalogo cinematografico</label>
-          <div class="catalog-search-row">
-            <svg aria-hidden="true"><use href="#i-search"/></svg>
-            <input type="search" id="catalog-query" name="query" autocomplete="off" minlength="2" placeholder="Titolo, anche in lingua originale…" />
-            <button type="submit">Cerca film <svg aria-hidden="true"><use href="#i-arrow"/></svg></button>
-          </div>
-        </form>
         <div class="catalog-filters">
-          <div class="catalog-type-tabs" id="global-type" role="group" aria-label="Tipo di titolo da cercare">
+          <div class="catalog-type-tabs" id="global-type" role="group" aria-label="Formato del catalogo">
             <button type="button" data-catalog-type="all" aria-pressed="true" class="active">Film e serie</button>
             <button type="button" data-catalog-type="movie" aria-pressed="false">Film</button>
             <button type="button" data-catalog-type="tv" aria-pressed="false">Serie TV</button>
+            <button type="button" data-catalog-type="anime" aria-pressed="false">Anime</button>
           </div>
-          <div id="catalog-count" class="catalog-count"></div>
         </div>
+        <div class="catalog-theme-section">
+          <div class="theme-filter-heading">
+            <span>Temi e generi</span>
+            <span class="theme-filter-hint">Seleziona uno o più tag</span>
+          </div>
+          <div class="theme-tags" id="global-themes" role="group" aria-label="Filtra il catalogo per temi e generi">
+            <button class="theme-tag active" type="button" data-global-theme="all" aria-pressed="true">Tutti i temi</button>
+            <button class="theme-tag" type="button" data-global-theme="azione" aria-pressed="false">Azione</button>
+            <button class="theme-tag" type="button" data-global-theme="avventura" aria-pressed="false">Avventura</button>
+            <button class="theme-tag" type="button" data-global-theme="animazione" aria-pressed="false">Animazione</button>
+            <button class="theme-tag" type="button" data-global-theme="commedia" aria-pressed="false">Commedia</button>
+            <button class="theme-tag" type="button" data-global-theme="crime" aria-pressed="false">Crime</button>
+            <button class="theme-tag" type="button" data-global-theme="documentario" aria-pressed="false">Documentario</button>
+            <button class="theme-tag" type="button" data-global-theme="drammatico" aria-pressed="false">Drammatico</button>
+            <button class="theme-tag" type="button" data-global-theme="famiglia" aria-pressed="false">Famiglia</button>
+            <button class="theme-tag" type="button" data-global-theme="fantascienza" aria-pressed="false">Fantascienza</button>
+            <button class="theme-tag" type="button" data-global-theme="fantasy" aria-pressed="false">Fantasy</button>
+            <button class="theme-tag" type="button" data-global-theme="guerra" aria-pressed="false">Guerra</button>
+            <button class="theme-tag" type="button" data-global-theme="horror" aria-pressed="false">Horror</button>
+            <button class="theme-tag" type="button" data-global-theme="mistero" aria-pressed="false">Mistero</button>
+            <button class="theme-tag" type="button" data-global-theme="musica" aria-pressed="false">Musica</button>
+            <button class="theme-tag" type="button" data-global-theme="romantico" aria-pressed="false">Romantico</button>
+            <button class="theme-tag" type="button" data-global-theme="storia" aria-pressed="false">Storia</button>
+            <button class="theme-tag" type="button" data-global-theme="thriller" aria-pressed="false">Thriller</button>
+          </div>
+        </div>
+        <div class="catalog-search-section">
+          <form class="catalog-search" id="catalog-search-form" role="search">
+            <label for="catalog-query">Cerca nel catalogo cinematografico</label>
+            <div class="catalog-search-row">
+              <svg aria-hidden="true"><use href="#i-search"/></svg>
+              <input type="search" id="catalog-query" name="query" autocomplete="off" minlength="2" placeholder="Titolo, anche in lingua originale…" />
+              <button type="submit">Cerca film <svg aria-hidden="true"><use href="#i-arrow"/></svg></button>
+            </div>
+          </form>
+          <button type="button" class="catalog-clear-filters clear-library-filters" id="clear-global-filters" aria-label="Cancella ricerca e tutti i filtri del catalogo" title="Cancella tutti i filtri" disabled>
+            <svg aria-hidden="true"><use href="#i-close"/></svg>
+          </button>
+        </div>
+        <div class="catalog-filter-meta"><span id="catalog-count" class="catalog-count"></span></div>
         <section id="local-match-section" class="catalog-local" hidden aria-labelledby="local-match-title">
           <div class="reel-heading"><div><p class="reel-context">Già nella tua libreria</p><h3 id="local-match-title">I tuoi titoli</h3></div></div>
           <div id="local-matches" class="reel-track"></div>
