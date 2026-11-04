@@ -3,7 +3,7 @@
 const $=s=>document.querySelector(s), $$=s=>Array.from(document.querySelectorAll(s));
 const icon=n=>`<svg aria-hidden="true"><use href="#i-${n}"></use></svg>`;
 const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-const safeUrl=v=>{try{const x=new URL(String(v),location.href);return ['http:','https:'].includes(x.protocol)?x.href:'';}catch{return '';}};
+const safeUrl=v=>{if(typeof v!=='string'||!/^https?:\/\//i.test(v.trim()))return '';try{const x=new URL(v);return ['http:','https:'].includes(x.protocol)?x.href:'';}catch{return '';}};
 const normal=s=>String(s||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLocaleLowerCase('it');
 const typeNames={film:'Film',anime:'Anime',serie:'Serie TV','film-anime':'Film anime','film-animazione':'Animazione'};
 const scoreNames={emotion:'Emozione',comedy:'Commedia',action:'Azione',romance:'Romanticismo',tension:'Tensione'};
@@ -155,7 +155,8 @@ async function openExplore(term='',updateHistory=true){
  }
  render();
  await window.EmotecaExplorer?.init?.();
- window.EmotecaExplorer?.search?.(term);
+ const typed=$('#catalog-query').value.trim() || $('#search').value.trim() || term;
+ window.EmotecaExplorer?.search?.(typed);
  if(first)window.scrollTo({top:0,behavior:'auto'});
 }
 async function store(next,notify){await CatalogDB.write(next);films=next;render();if(notify)toast(notify);}
