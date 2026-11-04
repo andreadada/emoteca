@@ -134,7 +134,7 @@ test('Remote poster refresh only modifies image slots, never action buttons', ()
   assert.ok(css.includes('.feature-poster > .poster-image'));
   assert.ok(css.includes('.detail-poster > .poster-image'));
   const html = read('index.html');
-  assert.ok(html.includes('styles-cinema.css?v=20261104-libraryfilters'));
+  assert.ok(html.includes('styles-cinema.css?v=20261104-globaltags'));
   assert.ok(html.includes('js/app.js?v=20261104-libraryfilters'));
 });
 
@@ -212,7 +212,7 @@ test('Library filters use multi-select theme tags, Horror, local search and clea
   assert.ok(app.includes("function clearLibraryFilters()"), 'The X clears all local filter dimensions');
   assert.ok(app.includes("query='';") && app.includes("selectedThemes.clear()"));
   assert.ok(css.includes('.theme-tag.active') && css.includes('.library-searchbox'));
-  assert.ok(html.includes('styles-cinema.css?v=20261104-libraryfilters'));
+  assert.ok(html.includes('styles-cinema.css?v=20261104-globaltags'));
   assert.ok(html.includes('js/app.js?v=20261104-libraryfilters'));
 });
 
