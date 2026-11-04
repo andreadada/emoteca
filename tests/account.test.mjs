@@ -15,7 +15,7 @@ test('Optional Google accounts and PostgreSQL module parse without needing crede
 test('Google sessions are verified on server and user data remains isolated',()=>{
  const api=read('server/user-api.mjs');
  for(const text of ["createPublicKey({key,format:'jwk'})","verifySignature('RSA-SHA256'",
-  "payload.aud!==clientId","payload.exp<=now","payload.email_verified!==true",
+  "payload.aud!==expectedAudience","payload.exp<=now","payload.email_verified!==true",
   "token_hash","randomBytes(32)","httpOnly=true","SameSite=Lax",
   "csrfOk(req)","authenticatedOrigin(req)","WHERE google_sub=$3 AND version=$4",
   "status>=500",'google_sub TEXT PRIMARY KEY'])assert.ok(api.includes(text),'missing control '+text);
