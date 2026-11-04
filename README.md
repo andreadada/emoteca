@@ -2,9 +2,22 @@
 
 Una libreria cinematografica personale in HTML, CSS e JavaScript puro. Parte da **34 titoli iniziali**, mantiene valutazioni, preferiti, note e filtri nel browser, e ora permette di **cercare nuovi film da Wikidata o TMDB** e aggiungerli selettivamente alla raccolta.
 
+## Interfaccia — esperienza cinema-first
+
+La UI 2.0 non è un restyling CSS della dashboard precedente: la navigazione è orizzontale e non esiste più una sidebar permanente o una griglia di statistiche.
+
+- **In evidenza** mostra un titolo reale della collezione con sinossi e locandina, più una selezione orizzontale dei film ancora da guardare.
+- **Libreria**, **Da guardare**, **Visti**, **Preferiti** sono viste dedicate. La ricerca locale consulta tutti i titoli salvati, anche quelli già visti.
+- Le copertine sono card con pulsanti distinti per aprire la scheda e aggiungere ai preferiti.
+- Le **schede film** separano informazioni e link esterni dal diario personale (reazione, valutazione e note).
+- **Trova un film** apre la ricerca Wikidata/TMDB; **+** crea un titolo a mano; **Backup dei dati** permette import/export JSON.
+- Su mobile la navigazione diventa una riga orizzontale scorrevole senza menu laterale.
+
+La compatibilità con la struttura storica IndexedDB e con i backup JSON è intenzionalmente preservata. Vedi [UX DESIGN V2](docs/UX-REDESIGN-V2.md).
+
 ## Novità — Esplora il catalogo cinematografico
 
-**Esplora film** nella barra superiore o nella navigazione apre la ricerca tra archivi esterni.
+**Trova un film** nella barra superiore apre la ricerca tra archivi esterni, separata dalla libreria personale.
 
 - **Wikidata** è la fonte predefinita: metadati strutturati con licenza CC0, nessuna chiave API necessaria. La ricerca è online, non un download di tutte le opere esistenti.
 - **TMDB** è facoltativo: richiede un **API Read Access Token (Bearer)** personale e offre poster e sinossi più ricchi. Il token è usato esclusivamente in memoria nella pagina e non viene registrato, salvato nel database o inserito nel codice. L'uso gratuito richiede finalità non commerciali e attribuzione; per scopi commerciali occorre una licenza.
@@ -45,7 +58,7 @@ In **IndexedDB**, nel browser e nell'origine da cui hai aperto la pagina. In con
 
 ## Gestione JSON
 
-Apri **Gestisci database** → trascina un file `.json`, oppure incolla il testo. Clicca **Verifica JSON** per vedere esattamente quali record verranno aggiunti, modificati o cancellati. **Applica modifiche** salva il nuovo stato in un'unica transazione. Se anche una sola operazione è invalida, non viene modificato nulla.
+Apri **Backup dei dati** → trascina un file `.json`, oppure incolla il testo. Clicca **Verifica JSON** per vedere esattamente quali record verranno aggiunti, modificati o cancellati. **Applica modifiche** salva il nuovo stato in un'unica transazione. Se anche una sola operazione è invalida, non viene modificato nulla.
 
 ### 1. Aggiornamento di un solo campo
 
@@ -128,12 +141,12 @@ Incluso `Dockerfile` con Nginx e `.dockerignore`. Carica la cartella in una repo
 node --test tests/*.test.mjs
 ```
 
-La pipeline GitHub Actions `.github/workflows/smoke.yml` verifica la sintassi JS, i collegamenti ai file, la validazione del formato dei titoli importati, il comportamento senza token nel repository e la compatibilità del database locale.
+La pipeline GitHub Actions `.github/workflows/smoke.yml` verifica sintassi JS, collegamenti ai file, validazione e compatibilità del database locale. `.github/workflows/ui-e2e.yml` esegue inoltre flussi Chromium reali desktop/mobile e produce screenshot per la revisione del design.
 
 ## Organizzazione
 
 - `index.html` — interfaccia e modali
-- `styles.css` — foglio storico; `styles-premium.css` — nuovo design system cinematografico responsive
+- `styles-cinema.css` — unico design system editoriale cinematografico, desktop/mobile e modali
 - `js/data.js` — catalogo iniziale, con affinità e temi
 - `js/db.js` — salvataggio IndexedDB/localStorage
 - `js/app.js` — visualizzazione, filtri, rating, ricerca poster, operazioni JSON e bridge per i titoli esterni
@@ -143,6 +156,7 @@ La pipeline GitHub Actions `.github/workflows/smoke.yml` verifica la sintassi JS
 - `schema/afterframe-import.schema.json` — schema storico compatibile per importazioni
 - `docs/CATALOG-SOURCES-AND-DESIGN.md` — fonti, licenze, limiti e design system
 - `tests/smoke.test.mjs` — test JavaScript senza dipendenze
+- `tests/ui-e2e.mjs` — test di interazione Chromium e screenshot con Playwright
 
 ## Note su streaming e contenuti
 
