@@ -2,6 +2,14 @@
 
 Una libreria cinematografica personale in HTML, CSS e JavaScript puro. Parte da **34 titoli iniziali**, mantiene valutazioni, preferiti, note e filtri nel browser, e ora permette di **cercare nuovi film da Wikidata o TMDB** e aggiungerli selettivamente alla raccolta.
 
+## Da leggere per primi (stato aggiornato)
+
+- **[Handoff per un'altra chat / agente](docs/PROJECT-HANDOFF.md)**: stato verificato, file chiave, architettura, decisioni, limiti, roadmap P0/P1/P2 e prompt di ripartenza.
+- **[Guida alla pubblicazione su Coolify](docs/DEPLOY-COOLIFY.md)**: configurazione Dockerfile, branch `main`, porta 80, token TMDB a runtime, domini, test e rollback.
+- **[Architettura catalogo v3](docs/CATALOG-V3.md)**: fonti TMDB/Wikidata, endpoint e restrizioni.
+
+**Nota di stato (4/11/2026):** codice v3 e CI verificati su GitHub; **deploy reale, dominio e token TMDB di produzione non verificati**. Non confondere i test con provider simulato con una prova live.
+
 ## Emoteca 3.0 — ricerca mondiale e pagine film
 
 **La ricerca principale è globale.** Digitando almeno due caratteri nella barra superiore si apre la pagina **Tutti i film**, non un filtro limitato ai 34 titoli di partenza. La pagina mostra separatamente i titoli già salvati e i risultati del catalogo esterno. Ogni risultato può aprire una pagina film **anche prima di essere salvato**; da lì è possibile aggiungerlo alla libreria per registrare voto, stato e note.
@@ -31,31 +39,16 @@ Senza questa variabile l'app **funziona comunque**: l'utente può cercare titoli
 
 Vedi [ARCHITETTURA CATALOGO 3.0](docs/CATALOG-V3.md) per endpoints, limiti, sicurezza, checklist e test.
 
-## Interfaccia — esperienza cinema-first
+## Interfaccia e fonti attuali
 
-La UI 2.0 non è un restyling CSS della dashboard precedente: la navigazione è orizzontale e non esiste più una sidebar permanente o una griglia di statistiche.
+- Navigazione orizzontale con **Tutti i film**, **La mia libreria**, **Da guardare**, **Visti**, **Preferiti**. La barra superiore cerca nel catalogo mondiale, non soltanto nei titoli salvati.
+- Ricerca esterna su una **pagina**, non nel vecchio popup: TMDB attraverso API Node interna al container o token personale temporaneo; Wikidata come alternativa senza chiave (meno risultati/copertine).
+- Pagina film indipendente con URL `?film=...`, distinta dalle modali rimaste solo per modifica e backup. I film esterni sono consultabili prima di salvarli.
+- Homepage con titolo scelto tra quelli **non visti** della libreria privata, evitando il titolo precedente se ci sono candidati.
+- UI cinematografica responsive, con poster veri o fallback tipografico; nessuna garanzia di possedere tutte le copertine.
+- Limiti di licenza: TMDB non è un database open source; i dati strutturati Wikidata sono CC0 ma le immagini Commons hanno licenze proprie.
 
-- **In evidenza** mostra un titolo reale della collezione con sinossi e locandina, più una selezione orizzontale dei film ancora da guardare.
-- **Libreria**, **Da guardare**, **Visti**, **Preferiti** sono viste dedicate. La ricerca locale consulta tutti i titoli salvati, anche quelli già visti.
-- Le copertine sono card con pulsanti distinti per aprire la scheda e aggiungere ai preferiti.
-- Le **schede film** separano informazioni e link esterni dal diario personale (reazione, valutazione e note).
-- **Trova un film** apre la ricerca Wikidata/TMDB; **+** crea un titolo a mano; **Backup dei dati** permette import/export JSON.
-- Su mobile la navigazione diventa una riga orizzontale scorrevole senza menu laterale.
-
-La compatibilità con la struttura storica IndexedDB e con i backup JSON è intenzionalmente preservata. Vedi [UX DESIGN V2](docs/UX-REDESIGN-V2.md).
-
-## Novità — Esplora il catalogo cinematografico
-
-**Tutti i film** nella navigazione e la ricerca superiore aprono una pagina dedicata, non un popup. Il catalogo TMDB si abilita da Coolify; Wikidata è disponibile senza token.
-
-- **Wikidata** è la fonte di riserva: metadati strutturati con licenza CC0, nessuna chiave API necessaria. La ricerca è online, non un download di tutte le opere esistenti.
-- **TMDB** è facoltativo: richiede un **API Read Access Token (Bearer)** personale e offre poster e sinossi più ricchi. Il token è usato esclusivamente in memoria nella pagina e non viene registrato, salvato nel database o inserito nel codice. L'uso gratuito richiede finalità non commerciali e attribuzione; per scopi commerciali occorre una licenza.
-- Per ogni risultato sono mostrati titolo, anno (quando presente), descrizione, poster disponibile, link alla fonte e **Aggiungi**. Se manca l'anno non vengono inventati metadati e l'importazione automatica è disabilitata.
-- I film importati sono salvati nella **biblioteca locale**, non sostituiscono i titoli esistenti e non ricevono percentuali di affinità fittizie. Titoli già presenti non vengono duplicati.
-- I poster da Wikimedia Commons sono soggetti alle **licenze individuali** dei file, distinte dalla licenza CC0 sui dati strutturati.
-- Non viene verificata la disponibilità dei film sulle piattaforme streaming.
-
-Per la valutazione approfondita delle fonti, i limiti dei cataloghi e il nuovo design system vedi [Sorgenti catalogo e design](docs/CATALOG-SOURCES-AND-DESIGN.md).
+Per riferimenti storici al redesign consulta [UX v2](docs/UX-REDESIGN-V2.md) e [valutazione delle fonti](docs/CATALOG-SOURCES-AND-DESIGN.md): **questi due documenti descrivono anche passaggi precedenti e non sostituiscono lo stato v3**.
 
 ## Avvio rapido
 
@@ -64,13 +57,13 @@ Per la valutazione approfondita delle fonti, i limiti dei cataloghi e il nuovo d
    - Windows: doppio clic su `avvia-windows.bat` (serve Python installato).
    - Mac/Linux: `./avvia-mac-linux.sh`.
    - Manuale: nella cartella, esegui `python -m http.server 8000`, poi visita `http://localhost:8000`.
-3. Nessuna libreria JS esterna né chiave richiesta per la libreria personale e Wikidata. La ricerca esterna richiede rete; TMDB richiede un token personale.
+3. L'apertura del solo `index.html` o un server statico locale **non avvia l'API Node**: permette la libreria personale e la ricerca Wikidata, ma non il proxy TMDB. Per provare l'app v3 completa usa Docker (vedi runbook) oppure inserisci un token temporaneo nel frontend per una sessione personale non pubblica.
 
 ## Funzionalità
 
 - **Catalogo iniziale personalizzato**: 34 titoli precompilati per la libreria personale, a cui aggiungere film e serie dal catalogo globale o manualmente.
-- **Cover**: URL immagini impostati su alcune schede; per altre il browser cerca immagini pubbliche tramite Jikan (anime), TVmaze (serie) e, dove applicabile, iTunes Search (film). Ricerca asincrona, senza chiavi. Se un sito esterno è irraggiungibile o blocca la richiesta, viene mostrata una copertina tipografica, **non una foto inventata**. Le copertine necessitano di Internet e appartengono ai rispettivi proprietari. Se vuoi garantire una copertina precisa, inserisci manualmente il relativo URL HTTPS dalla modifica della scheda o dal JSON. I browser possono bloccare richieste cross-origin o immagini remote: è previsto un fallback. Alcuni endpoint hanno limiti di richieste.
-- **Ricerca** per titolo, genere, trama, anno e tag, filtri per tipo di opera e temi, ordinamento.
+- **Cover**: TMDB tramite proxy o token personale, con corrispondenza titolo/anno, integrata da eventuali URL manuali e ricerche Jikan (anime), TVmaze (serie), iTunes Search (film). Ricerca asincrona, senza chiavi. Se un sito esterno è irraggiungibile o blocca la richiesta, viene mostrata una copertina tipografica, **non una foto inventata**. Le copertine necessitano di Internet e appartengono ai rispettivi proprietari. Se vuoi garantire una copertina precisa, inserisci manualmente il relativo URL HTTPS dalla modifica della scheda o dal JSON. I browser possono bloccare richieste cross-origin o immagini remote: è previsto un fallback. Alcuni endpoint hanno limiti di richieste.
+- **Due ricerche distinte**: globale TMDB/Wikidata per film e serie internazionali; filtri, temi e ordinamento nella libreria personale.
 - **Stati**: da guardare, in corso, visto; filtraggio automatico delle raccomandazioni già viste.
 - **Preferiti** con pulsante dedicato; **reazione personale** (non visto / ho pianto / mi ha commosso / non mi ha colpito).
 - **Voto personale** 1–10 e **note private** (che possono contenere spoiler). Le schede pubbliche iniziali non spoilerano.
@@ -83,7 +76,7 @@ Per la valutazione approfondita delle fonti, i limiti dei cataloghi e il nuovo d
 
 In **IndexedDB**, nel browser e nell'origine da cui hai aperto la pagina. In contesti dove IndexedDB non è disponibile viene provato `localStorage` come fallback. **Non è un database remoto/condiviso**: se cancelli i dati del sito, cambi browser, dispositivo, dominio o URL di accesso, puoi perdere/isolarti dai dati locali. Esegui periodicamente **Esporta backup**. I file JSON rimangono sul tuo dispositivo finché non scegli di importarli.
 
-**Non è presente nessun backend o account**. Per condividere modifiche fra telefoni o utenti, servirà in futuro una API e un DB server (per esempio Spring Boot + PostgreSQL): questo ZIP offre già un modello dati e uno schema d'importazione comodi da riutilizzare.
+**È presente soltanto un backend Node di metadati pubblici TMDB; non esistono backend utente, account o sincronizzazione**. Per condividere i dati tra dispositivi serve una soluzione separata di autenticazione e persistenza, con migrazione/backup. Il container Coolify non conserva voti e note.
 
 ## Gestione JSON
 
@@ -160,7 +153,11 @@ Sono forniti due esempi: `examples/aggiorna-un-titolo.json` e `examples/operazio
 
 ## Pubblicazione su Coolify
 
-Incluso `Dockerfile` con Nginx e `.dockerignore`. Carica la cartella in una repository Git e su Coolify crea una **Application** con build Dockerfile. Il sito resta statico per la libreria personale; il container ora comprende un proxy di metadati TMDB lato server, attivo solo con `TMDB_READ_TOKEN`. Le note e i voti rimangono **nel browser del visitatore** e non vengono inviati al proxy. Se passi da localhost a dominio, importa il backup JSON per migrare il tuo catalogo.
+Guida completa e aggiornata: **[DEPLOY-COOLIFY.md](docs/DEPLOY-COOLIFY.md)**.
+
+Configurazione rapida: repository `https://github.com/andreadada/emoteca`, branch `main`, build pack `Dockerfile`, base directory `/`, Dockerfile `/Dockerfile`, porta interna `80`. Impostare `TMDB_READ_TOKEN` come **Runtime secret**, non Build-time, poi deploy e verifica `/api/catalog/status` e una ricerca reale TMDB. Nessun database necessario per la v3.
+
+Non è confermato in questa documentazione che esista già un'Application Coolify attiva o che sia stato effettuato un deploy. Se è già presente, aggiornare quella anziché duplicarla. Con un dominio nuovo serve esportare/importare manualmente il backup IndexedDB dal browser di origine.
 
 ## Verifiche automatiche
 
@@ -185,8 +182,13 @@ La pipeline GitHub Actions `.github/workflows/smoke.yml` verifica sintassi JS, c
 - `examples/*.json` — esempi di import
 - `database/catalogo-iniziale.json` — catalogo iniziale esportabile/modificabile
 - `schema/afterframe-import.schema.json` — schema storico compatibile per importazioni
-- `docs/CATALOG-SOURCES-AND-DESIGN.md` — fonti, licenze, limiti e design system
-- `tests/smoke.test.mjs` — test JavaScript senza dipendenze
+- `docs/PROJECT-HANDOFF.md` — **stato corrente**, roadmap e istruzioni per riprendere in una nuova chat
+- `docs/DEPLOY-COOLIFY.md` — runbook di pubblicazione e diagnostica
+- `docs/CATALOG-V3.md` — architettura del catalogo globale
+- `docs/UX-REDESIGN-V2.md` — note storiche UX
+- `docs/CATALOG-SOURCES-AND-DESIGN.md` — ricerca storica sulle fonti
+- `tests/smoke.test.mjs` — smoke test e validazione UI
+- `tests/api.test.mjs` — test del proxy TMDB con provider fittizio (nessun token reale)
 - `tests/ui-e2e.mjs` — test Chromium della ricerca globale e delle pagine film, con screenshot
 
 ## Note su streaming e contenuti
