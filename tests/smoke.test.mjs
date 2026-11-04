@@ -253,7 +253,8 @@ test('Global catalog has genre chips, Anime and a separate reset button', () => 
     assert.ok(html.includes('id="'+id+'"'),'Missing global catalog control '+id);
   }
   assert.ok(html.indexOf('id="global-type"')<html.indexOf('id="global-themes"'));
-  assert.ok(html.indexOf('id="global-themes"')<html.indexOf('id="catalog-search-form"'));
+  assert.ok(html.indexOf('id="catalog-search-form"')<html.indexOf('id="global-themes"'),
+    'The search action must precede optional genre refinements');
   assert.ok(html.includes('data-catalog-type="anime"'), 'Anime is a distinct global category');
   assert.ok(html.includes('data-global-theme="horror"'),'Horror must be a selectable global genre');
   assert.ok(html.includes('data-global-theme="all"'),'All themes toggle exists');
