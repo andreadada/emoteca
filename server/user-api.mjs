@@ -116,7 +116,9 @@ async function googlePublicKeys(force=false){
   keyCache={keys,expires:Date.now()+45*60*1000};
   return keys;
 }
-async function verifyGoogle(token){
+/** Pure, independently testable JWT verification. The signing keys are supplied by
+ * the caller only after fetching them from Google's official JWKS endpoint. */
+export function verifyGoogleJwt(token,keys,expectedAudience,now=Math.floor(Date.now()/1000)){
   if(typeof token!=='string'||token.length>12000)throw Error('Credenziale Google non valida.');
   const parts=token.split('.');
   if(parts.length!==3)throw Error('Credenziale Google non valida.');
@@ -126,15 +128,13 @@ async function verifyGoogle(token){
     payload=JSON.parse(Buffer.from(parts[1],'base64url').toString('utf8'));
   }catch{throw Error('Credenziale Google non valida.');}
   if(header.alg!=='RS256'||typeof header.kid!=='string')throw Error('Firma Google non valida.');
-  let key=(await googlePublicKeys()).find(k=>k.kid===header.kid);
-  if(!key)key=(await googlePublicKeys(true)).find(k=>k.kid===header.kid);
+  const key=Array.isArray(keys)?keys.find(k=>k.kid===header.kid&&k.kty==='RSA'):null;
   if(!key)throw Error('Chiave Google non riconosciuta.');
   const verified=verifySignature('RSA-SHA256',
     Buffer.from(parts[0]+'.'+parts[1]),createPublicKey({key,format:'jwk'}),
     Buffer.from(parts[2],'base64url'));
-  const now=Math.floor(Date.now()/1000);
   if(!verified||!['accounts.google.com','https://accounts.google.com'].includes(payload.iss)||
-    payload.aud!==clientId||!Number.isFinite(payload.exp)||payload.exp<=now||
+    payload.aud!==expectedAudience||!Number.isFinite(payload.exp)||payload.exp<=now||
     !Number.isFinite(payload.iat)||payload.iat>now+60||
     typeof payload.sub!=='string'||!/^\d{1,40}$/.test(payload.sub)||
     payload.email_verified!==true||typeof payload.email!=='string')
@@ -142,6 +142,15 @@ async function verifyGoogle(token){
   return {sub:payload.sub,email:payload.email.slice(0,255),
     name:typeof payload.name==='string'?payload.name.slice(0,100):'Utente',
     picture:typeof payload.picture==='string'&&/^https:\/\//.test(payload.picture)?payload.picture.slice(0,500):''};
+}
+async function verifyGoogle(token){
+  const keys=await googlePublicKeys();
+  try{return verifyGoogleJwt(token,keys,clientId);}
+  catch(error){
+    if(error.message==='Chiave Google non riconosciuta.')
+      return verifyGoogleJwt(token,await googlePublicKeys(true),clientId);
+    throw error;
+  }
 }
 async function currentUser(req,db){
   const token=cookies(req)[cookieSession];
