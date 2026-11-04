@@ -305,11 +305,14 @@ test('Personal lists keep existing films and their diaries without duplication',
   assert.deepEqual([...restored[0].filmIds],films.map(f=>f.id));
   const longFilmId='movie-'+ 'a'.repeat(83); // 89 characters, valid in validateFilm().
   const longFilm=[...films,{id:longFilmId,title:'Titolo lungo',status:'watchlist'}];
-  const migrated=m.normalize([{id:'mia-lista',name:'La mia lista',filmIds:[longFilmId]}],longFilm);
+  const migratedInput=m.initial(longFilm); // vm-realm objects, like an IndexedDB record.
+  migratedInput[0].filmIds=[longFilmId];
+  const migrated=m.normalize(migratedInput,longFilm);
   assert.deepEqual([...migrated[0].filmIds],[longFilmId],
     'List film IDs must support the same 90-character maximum as the film schema');
-  assert.throws(()=>m.normalize([{id:'x'.repeat(65),name:'Lista',filmIds:[]},
-    {id:'mia-lista',name:'Principale',filmIds:[]}],films),/Identificativo/);
+  const tooLongListId=m.create(m.initial(films),'Lista nuova');
+  tooLongListId[1].id='x'.repeat(65);
+  assert.throws(()=>m.normalize(tooLongListId,films),/Identificativo/);
   const snapshot=read('js/db.js');
   assert.ok(snapshot.includes('writeSnapshot'));
   assert.ok(snapshot.includes("LIST_KEY='personal-lists-v1'"));
