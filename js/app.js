@@ -178,6 +178,46 @@ function store(nextOrUpdater,notify,options={}){
  writeQueue=pending.catch(()=>{});
  return pending;
 }
+async function attachCatalogRecord(localId,remote,seed=null){
+ if(!/^tmdb-(movie|tv)-[1-9]\\d*$/.test(remote?.id||''))return false;
+ let updated=false;
+ await store(current=>{
+   const original=current.find(f=>f.id===localId);
+   if(!original || original.year!==remote.year ||
+      window.EmotecaIdentity.mediaOf(original)!==window.EmotecaIdentity.mediaOf(remote))
+     return current;
+   const existing=current.find(f=>f.id!==localId&&
+     window.EmotecaIdentity.canonical(f)===remote.id);
+   if(existing)return current;
+   const merged=window.EmotecaIdentity.enrichSaved(original,remote,seed);
+   if(!merged)return current;
+   updated=true;
+   return current.map(f=>f.id===localId?validateFilm(merged):f);
+ },null,{background:true});
+ return updated;
+}
+async function syncSeedCatalog(){
+ const explorer=window.EmotecaExplorer;
+ if(!explorer?.isEnabled?.() || !explorer?.resolveSeed)return;
+ let networkFailures=0;
+ for(const seed of window.SEED_FILMS||[]){
+   const current=films.find(f=>f.id===seed.id);
+   if(!current||current.catalogId||current.year!==seed.year||
+     window.EmotecaIdentity.mediaOf(current)!==window.EmotecaIdentity.mediaOf(seed))continue;
+   // Do not silently re-link a seed that the user renamed into a different work.
+   if(current.title!==seed.title && current.posterQuery!==seed.posterQuery)continue;
+   try{
+     const remote=await explorer.resolveSeed(seed);
+     if(remote){
+       await attachCatalogRecord(seed.id,remote,seed);
+       networkFailures=0;
+     }
+   }catch{
+     if(++networkFailures>=3)break; // TMDB offline/rate-limited: retry next visit.
+   }
+   await new Promise(resolve=>setTimeout(resolve,750));
+ }
+}
 async function changeFilm(id,change){
  await store(current=>current.map(f=>f.id===id?
   {...f,...change,updatedAt:new Date().toISOString()}:f));
@@ -504,7 +544,12 @@ async function init(){
  }
  await routeFromLocation();
  window.EmotecaExplorer?.init?.().then(()=>{
-   if(window.EmotecaExplorer?.isEnabled?.()){posterTried.clear();observePosters();}
+   if(window.EmotecaExplorer?.isEnabled?.()){
+     posterTried.clear();observePosters();
+     // Link preloaded legacy IDs to official catalog identities, progressively.
+     // Never overwrite personal history and never block the initial render.
+     setTimeout(()=>{syncSeedCatalog().catch(()=>{});},1200);
+   }
  }).catch(()=>{});
  $('#search').addEventListener('input',e=>{
  const term=e.target.value.trim();
