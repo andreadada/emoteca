@@ -135,7 +135,7 @@ test('Remote poster refresh only modifies image slots, never action buttons', ()
   assert.ok(css.includes('.detail-poster > .poster-image'));
   const html = read('index.html');
   assert.ok(html.includes('styles-cinema.css?v=20261104-libraryfilters'));
-  assert.ok(html.includes('js/app.js?v=20261104-seedlink'));
+  assert.ok(html.includes('js/app.js?v=20261104-libraryfilters'));
 });
 
 test('Catalog identity deduplicates legacy seeds and protects personal history', () => {
