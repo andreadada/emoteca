@@ -280,6 +280,7 @@ function showDetail(id,push=true){
     ${f.description?`<p class="detail-description">${esc(f.description)}</p>`:'<p class="detail-description">La fonte non fornisce una sinossi per questo titolo.</p>'}
     <div class="detail-actions">${heroButtons}</div>
     ${saved&&f.why?`<p class="detail-why">${esc(f.why)}</p>`:''}
+    ${saved&&f.catalogId&&f.catalogSource?`<p class="detail-origin">Metadati collegati a ${esc(f.catalogSource)} · Diario personale conservato</p>`:''}
     ${!saved?`<p class="detail-origin">Scheda da ${esc(f.source||'catalogo esterno')}</p>`:''}
   </div>
  </div>
