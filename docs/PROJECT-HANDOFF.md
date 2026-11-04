@@ -125,6 +125,22 @@ Nota legale: TMDB richiede attribuzione ed ha un utilizzo gratuito previsto per 
 
 **Stato:** controllare PR, test CI ed eventuale merge prima di considerare il cambiamento già pubblicato. Nessuna modifica ai dati IndexedDB, ai 34 seed o al proxy TMDB. Serve sempre il redeploy Coolify e un controllo sul dominio reale.
 
+## Global catalog — temi, generi e Anime (4 novembre 2026)
+
+**Richiesta:** replicare in **Tutti i film** le selezioni a mini-tag già implementate nella libreria personale, con **Horror**, ricerca e **X** per azzerare i filtri; aggiungere **Anime** alle categorie globali.
+
+**Implementazione prevista in branch `feat/global-tags-anime`:**
+- Catalogo globale: schede Film e serie / Film / Serie TV / **Anime**, sotto tag temi e generi con `aria-pressed` e selezione multipla, ricerca per titolo e X azzera tutto.
+- I filtri globali usano **TMDB** e non le categorie/descrizioni create manualmente nella libreria privata. Nuovo parametro `genres=horror,azione` (chiavi validate, lista limitata) per `/api/catalog/discover` e `/api/catalog/search`; con più temi logica OR, con tipo logica AND.
+- **Anime** significa serie e film di animazione originariamente **giapponesi** secondo TMDB: `original_language=ja` e genere Animazione `16`. Non sono esclusi i film anime. TMDB /discover supporta entrambi i parametri. Wikidata ha soltanto una classificazione limitata, senza discovery globale completa.
+- Per **discovery** i generi vengono applicati upstream tramite `with_genres`; se sono selezionati sia film sia serie si fondono due pagine dello stesso indice.
+- La **ricerca testuale** TMDB non offre i filtri genere su `search` come li offre su `discover`: si filtrano i risultati ricevuti per pagina, senza inventare un totale di corrispondenze. `Mostra altri film` resta disponibile anche se una pagina non contiene corrispondenze; nella UI si esplicita che il risultato è relativo alle pagine esaminate.
+- **Horror** è genere 27 per i film; TMDB **non possiede un genere Horror TV**. Non attribuire il tag Horror alle serie Mistero/Fantasy senza dati espliciti: una combinazione Serie TV + Horror può non restituire titoli e viene segnalata la limitazione.
+- Il fallback **Wikidata** non fornisce generi attendibili per questa ricerca: con temi attivi il frontend spiega che serve TMDB, invece di fingere che il filtro operi su un indice mondiale completo.
+- Non viene modificato il formato della libreria privata, né la persistenza IndexedDB. La barra globale resta separata dalla ricerca locale di libreria.
+
+**Validazione:** aggiunti test API con un upstream TMDB simulato per genre 27, anime serie+film, ricerca paginata, parametri invalidi; test Chromium sui tag globali, X, Anime e viewport mobile. Controllare esito delle GitHub Actions prima di merge e redeploy Coolify. **La produzione richiede ancora verifica reale con TMDB su `https://film.ddone.it`.**
+
 ## 4. Cosa fare ADESSO — roadmap prioritaria
 
 ### P0 — Portare online e validare
