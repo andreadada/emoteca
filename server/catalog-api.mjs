@@ -5,6 +5,7 @@
  * Node 22+, no third-party dependencies.
  */
 import http from 'node:http';
+import {handleUser} from './user-api.mjs';
 
 const TOKEN = (process.env.TMDB_READ_TOKEN || '').trim().replace(/^Bearer\s+/i, '');
 const PORT = Number(process.env.CATALOG_PORT || 8787);
@@ -84,6 +85,19 @@ function normalize(item, selectedType) {
   const originalTitle = media === 'tv' ? item.original_name : item.original_title;
   const date = media === 'tv' ? item.first_air_date : item.release_date;
   const id = 'tmdb-' + media + '-' + item.id;
+  const credits=item.credits||{};
+  const cast=Array.isArray(credits.cast)?credits.cast
+    .filter(person=>typeof person.name==='string')
+    .slice(0,8).map(person=>({name:person.name.slice(0,90),
+      role:typeof person.character==='string'?person.character.slice(0,100):''})):[];
+  const crew=Array.isArray(credits.crew)?credits.crew:[];
+  const peopleByJobs=jobs=>[...new Set(crew.filter(person=>jobs.includes(person.job)&&typeof person.name==='string')
+    .map(person=>person.name.slice(0,90)))].slice(0,3);
+  const videos=Array.isArray(item.videos?.results)?item.videos.results:[];
+  const trailer=videos.find(video=>video.site==='YouTube'&&video.type==='Trailer'&&video.official&&
+    /^[a-zA-Z0-9_-]{11}$/.test(video.key))||
+    videos.find(video=>video.site==='YouTube'&&video.type==='Trailer'&&
+    /^[a-zA-Z0-9_-]{11}$/.test(video.key));
   return {
     id, provider: 'tmdb', source: 'TMDB', sourceId: String(item.id), media,
     title: title.trim().slice(0, 180),
@@ -93,6 +107,8 @@ function normalize(item, selectedType) {
     description: typeof item.overview === 'string' ? item.overview.slice(0, 900) : '',
     poster: imagePath(item.poster_path),
     backdrop: imagePath(item.backdrop_path, 'w1280'),
+    cast, directors:peopleByJobs(['Director']),writers:peopleByJobs(['Screenplay','Writer','Story','Teleplay']),
+    trailerUrl:trailer?'https://www.youtube.com/watch?v='+trailer.key:'',
     voteAverage: Number.isFinite(item.vote_average) ? item.vote_average : null,
     ratingCount: Number.isFinite(item.vote_count) ? item.vote_count : 0,
     duration: Number.isFinite(item.runtime) && item.runtime > 0 ? item.runtime + ' min' : '',
@@ -177,6 +193,7 @@ async function browse(type,genres,page) {
 }
 async function handle(req, res) {
   const url = new URL(req.url || '/', 'http://localhost');
+  if (await handleUser(req,res,url)) return;
   if (req.method !== 'GET') return respond(res, 405, { error: 'Metodo non consentito.' });
   if (url.pathname === '/api/catalog/status') {
     return respond(res, 200, { provider: TOKEN ? 'tmdb' : 'wikidata', enabled: Boolean(TOKEN),
@@ -210,7 +227,7 @@ async function handle(req, res) {
       const media = typeOf(url.searchParams.get('type'));
       const id = numericId(url.searchParams.get('id'));
       if (!media || !id) return respond(res, 400, { error: 'Identificativo non valido.' });
-      const item = await fetchTMDB('/' + media + '/' + id, { language: 'it-IT' });
+      const item = await fetchTMDB('/' + media + '/' + id, { language: 'it-IT', append_to_response: 'credits,videos' });
       const normalized = normalize(item, media);
       if (!normalized) return respond(res, 404, { error: 'Titolo non trovato.' });
       return respond(res, 200, { source: 'TMDB', item: normalized });

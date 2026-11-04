@@ -394,6 +394,11 @@ function showDetail(id,push=true){
  $('#detail-screen').hidden=false;
  $('#film-page-title').textContent='Scheda di '+f.title;
  document.title=f.title+' — Emoteca';
+ const backdropUrl=safeUrl(f.backdrop);
+ const backdropMount=$('#detail-cinema-backdrop');
+ backdropMount.innerHTML=backdropUrl?
+   `<img class="detail-cinema-image" src="${esc(backdropUrl)}" alt="" loading="eager" referrerpolicy="no-referrer" onerror="this.remove()" />`:'';
+ backdropMount.classList.toggle('without-backdrop',!backdropUrl);
  const saved=Boolean(personal);
  const scoreRows=Object.entries(scoreNames).map(([key,name])=>`<div class="score-row"><span>${esc(name)}</span><div class="score-track"><div class="score-fill" style="width:${(f.scores?.[key]||0)*20}%"></div></div><span class="score-number">${f.scores?.[key]||0}/5</span></div>`).join('');
  const heroButtons=saved
@@ -407,7 +412,7 @@ function showDetail(id,push=true){
    </select>`:'';
  const journal=saved?`<section class="reaction-panel">
      <h3>Il tuo diario</h3>
-     <p>Registra la tua reazione, il voto e una nota. Questi dati restano privati in questo browser.</p>
+     <p>Registra la tua reazione, il voto e una nota. ${window.CatalogDB.isCloud()?'I dati sono privati nel tuo account.':'I dati restano privati in questo browser.'}</p>
      <fieldset class="reaction-fieldset">
        <legend>Come ti ha lasciato?</legend>
        <div class="reaction-buttons">${Object.entries(reactNames).map(([value,label])=>`<button class="reaction-choice ${f.reaction===value&&(value!=='unseen'||f.status!=='watched')?'active':''}" type="button" data-reaction="${value}" data-id="${esc(f.id)}" aria-pressed="${f.reaction===value&&(value!=='unseen'||f.status!=='watched')?'true':'false'}">${esc(label)}</button>`).join('')}</div>
@@ -416,12 +421,11 @@ function showDetail(id,push=true){
      <div class="note-field"><label for="personal-notes">Note private</label><textarea id="personal-notes" rows="6" maxlength="3000" placeholder="Scrivi quello che vuoi ricordare…">${esc(f.notes)}</textarea></div>
      <button class="button secondary save-personal" type="button" data-action="save-personal" data-id="${esc(f.id)}">${icon('check')} Salva voto e note</button>
    </section>`:`<section class="reaction-panel">
-      <h3>Tieni traccia di questo film.</h3>
-      <p>Salvalo in una lista per registrare la visione, assegnare un voto o scrivere una nota privata.</p>
-      <button class="button primary" type="button" data-action="add-preview" ${Number.isInteger(f.year)?'':'disabled'}>Aggiungi alle mie liste</button>
+      <h3>Costruisci il tuo diario.</h3>
+      <p>Salva il titolo nella lista che preferisci. Da quel momento potrai segnare la visione, attribuirgli un voto e aggiungere una nota privata.</p>
       ${!Number.isInteger(f.year)?'<p class="link-notice">Questa fonte non indica l’anno: puoi aggiungere il titolo manualmente.</p>':''}
     </section>`;
- const image=f.backdrop&&safeUrl(f.backdrop)?`<img class="detail-backdrop" src="${esc(safeUrl(f.backdrop))}" alt="" loading="eager" referrerpolicy="no-referrer" onerror="this.remove()" />`:'';
+ const image=''; // full-width backdrop is mounted outside the detail card.
  $('#detail-content').innerHTML=`<div class="detail-hero">
   ${image}
   <div class="detail-poster" data-poster="${esc(f.id)}">${posterMarkup(f,true)}</div>
@@ -460,9 +464,38 @@ function showDetail(id,push=true){
      ${!saved&&f.sourceUrl&&safeUrl(f.sourceUrl)?`<a class="detail-source-link" target="_blank" rel="noopener noreferrer" href="${esc(safeUrl(f.sourceUrl))}">Apri la scheda su ${esc(f.source||'fonte esterna')} ${icon('external')}</a>`:''}
    </aside>
  </div>
+ <section id="detail-film-extras" class="detail-film-extras" aria-label="Cast e informazioni sul film" hidden></section>
  ${saved?`<div class="detail-bottom"><button class="button secondary" type="button" data-action="edit" data-id="${esc(f.id)}">${icon('edit')} Modifica scheda</button><button class="button secondary danger" type="button" data-action="delete" data-id="${esc(f.id)}">${icon('trash')} Elimina scheda personale</button></div>`:''}`;
  observePosters();
+ if(f.cast?.length||f.directors?.length||f.writers?.length||f.trailerUrl||Number.isFinite(f.voteAverage))
+   renderDetailExtras(f,id);
+ const catalogId=/^tmdb-(movie|tv)-\d+$/.test(f.id)?f.id:f.catalogId;
+ if(/^tmdb-(movie|tv)-\d+$/.test(catalogId||'')){
+   window.EmotecaExplorer?.detail?.(catalogId).then(details=>{
+     if(details&&detailId===id&&!$('#detail-screen').hidden)renderDetailExtras(details,id);
+   }).catch(()=>{});
+ }
  window.scrollTo({top:0,behavior:'auto'});
+}
+function renderDetailExtras(f,id){
+ const target=$('#detail-film-extras');
+ if(!target||detailId!==id)return;
+ const directors=Array.isArray(f.directors)?f.directors:[];
+ const writers=Array.isArray(f.writers)?f.writers:[];
+ const cast=Array.isArray(f.cast)?f.cast:[];
+ const score=Number.isFinite(f.voteAverage)&&f.voteAverage>0?f.voteAverage.toFixed(1):null;
+ const trailer=safeUrl(f.trailerUrl);
+ if(!directors.length&&!writers.length&&!cast.length&&!score&&!trailer){target.hidden=true;return;}
+ target.hidden=false;
+ target.innerHTML=`<div class="detail-extras-heading"><div><p class="eyebrow">DAL CATALOGO TMDB</p><h3>Dietro la storia.</h3></div>
+   ${score?`<div class="tmdb-score"><strong>${esc(score)}<span>/10</span></strong><small>Voto TMDB</small></div>`:''}
+   ${trailer?`<a class="button secondary film-trailer" href="${esc(trailer)}" target="_blank" rel="noopener noreferrer">${icon('arrow')} Guarda il trailer</a>`:''}</div>
+   ${directors.length||writers.length?`<div class="detail-people">
+     ${directors.length?`<p><span>Regia</span><strong>${esc(directors.join(' · '))}</strong></p>`:''}
+     ${writers.length?`<p><span>Sceneggiatura</span><strong>${esc(writers.join(' · '))}</strong></p>`:''}
+    </div>`:''}
+   ${cast.length?`<div class="detail-cast"><h4>Interpreti principali</h4><div class="detail-cast-track">${cast.slice(0,8).map(person=>
+     `<div class="detail-cast-person"><strong>${esc(person.name)}</strong><span>${esc(person.role||'Cast')}</span></div>`).join('')}</div></div>`:''}`;
 }
 function editSliders(scores){$('#edit-sliders').innerHTML=Object.entries(scoreNames).map(([key,label])=>`<div class="score-edit"><label for="score-${key}">${esc(label)}</label><input id="score-${key}" name="score-${key}" type="range" min="0" max="5" step="1" value="${scores[key]??0}"><output id="out-${key}">${scores[key]??0}/5</output></div>`).join('');}
 function slug(t){return normal(t).replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'').slice(0,75)||'nuovo-titolo';}
@@ -846,6 +879,8 @@ window.AfterframeCatalog={
       id:item.id,title:item.title,year:item.year,type:item.type||'film',
       genre:item.genre||'',description:item.description||'',source:item.source||'catalogo esterno',
       sourceUrl:item.sourceUrl||'',originalTitle:item.originalTitle||'',backdrop:item.backdrop||'',
+      cast:item.cast||[],directors:item.directors||[],writers:item.writers||[],
+      trailerUrl:item.trailerUrl||'',voteAverage:item.voteAverage??null,
       why:'',tags:[],scores:{emotion:0,comedy:0,action:0,romance:0,tension:0},
       match:0,status:'watchlist',reaction:'unseen',rating:null,
       favorite:false,notes:'',poster:item.poster||'',posterQuery:item.originalTitle||item.title,

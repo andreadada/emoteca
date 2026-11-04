@@ -10,6 +10,16 @@ Una libreria cinematografica personale in HTML, CSS e JavaScript puro. Parte da 
 
 **Nota di stato (4/11/2026):** codice v3 e CI verificati su GitHub; **deploy reale, dominio e token TMDB di produzione non verificati**. Non confondere i test con provider simulato con una prova live.
 
+## Modalità Scuro/Chiaro, scheda cinematografica e account Google
+
+- **Tema Scuro** predefinito, **Chiaro** selezionabile dall'header; la preferenza resta sul dispositivo.
+- **Scheda film immersiva:** l'immagine di sfondo TMDB riempie la pagina con un gradiente leggibile. La scheda mostra regia, sceneggiatori, cast, voto TMDB e trailer quando TMDB fornisce i dati.
+- **Accesso Google opzionale:** dopo la configurazione del server puoi creare liste e salvare voti, note e stato delle visioni nel tuo account per recuperarli da altri dispositivi.
+- **Modalità ospite preservata:** IndexedDB e backup JSON continuano a funzionare senza login. Al primo accesso Google è proposta una **copia esplicita dei dati locali** solo se il cloud è ancora vuoto. Non c'è importazione o cancellazione automatica.
+- **Privacy:** server verifica il token di identità Google, cookie HttpOnly Secure e dati PostgreSQL isolati per utente. Salvataggi con controllo versione evitano overwrite accidentali da più dispositivi.
+
+L'accesso Google **non è attivo finché non vengono configurati `GOOGLE_CLIENT_ID` e `DATABASE_URL` in Coolify**. Per ambiente, migrazione, API, sicurezza e test leggi [docs/GOOGLE-THEMES-BACKDROP.md](docs/GOOGLE-THEMES-BACKDROP.md).
+
 ## Emoteca / Reframe — nuova UX cinematografica
 
 La nuova interfaccia non replica una dashboard: prende come riferimenti funzionali Letterboxd (diario, liste, watchlist), MUBI (locandine e selezione editoriale) e Trakt (stati di visione). È un prodotto personale con un'identità distinta, non una copia.

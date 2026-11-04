@@ -75,5 +75,20 @@ async function writeSnapshot(films,lists){
    tx.onabort=()=>reject(tx.error||Error('Salvataggio annullato'));
  });
 }
-window.CatalogDB={read,write,readLists,writeLists,writeSnapshot,isFallback:()=>useFallback};
+const remote=async()=>{await window.EmotecaCloud?.init?.();return Boolean(window.EmotecaCloud?.isSignedIn?.());};
+const cloudData=()=>window.EmotecaCloud.snapshot();
+const guest={read,write,readLists,writeLists,writeSnapshot};
+window.CatalogDB={
+ read:async()=>await remote()?(await cloudData()).films:read(),
+ readLists:async()=>await remote()?(await cloudData()).lists:readLists(),
+ write:async films=>await remote()?
+   window.EmotecaCloud.write(films,(await cloudData()).lists):write(films),
+ writeLists:async lists=>await remote()?
+   window.EmotecaCloud.write((await cloudData()).films,lists):writeLists(lists),
+ writeSnapshot:async(films,lists)=>await remote()?
+   window.EmotecaCloud.write(films,lists):writeSnapshot(films,lists),
+ readLocal:guest.read,readLocalLists:guest.readLists,
+ isCloud:()=>window.EmotecaCloud?.isSignedIn?.()||false,
+ isFallback:()=>useFallback
+};
 })();

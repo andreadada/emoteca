@@ -7,7 +7,8 @@
 3. [docs/CATALOG-V3.md](docs/CATALOG-V3.md) — provider, API e vincoli delle licenze.
 4. [docs/PERSONAL-LISTS.md](docs/PERSONAL-LISTS.md) — liste personali multiple, migrazione e backup.
 5. [docs/DESIGN-REFRAME-2026.md](docs/DESIGN-REFRAME-2026.md) — linguaggio UI/UX aggiornato, pattern film-first, motion e verifiche.
-6. `README.md` e **codice attuale del branch `main`**.
+6. [docs/GOOGLE-THEMES-BACKDROP.md](docs/GOOGLE-THEMES-BACKDROP.md) — Google Identity Services, DB cloud, backup/consenso import, tema e backdrop.
+7. `README.md` e **codice attuale del branch `main`**.
 
 ## Invarianti da preservare
 
@@ -31,3 +32,6 @@
 ## Prossima azione
 
 Partire dal **P0** di [docs/PROJECT-HANDOFF.md](docs/PROJECT-HANDOFF.md): redeploy da `main` della funzione **Le mie liste** (PR #9), verifica non distruttiva della migrazione e dei backup, quindi controllo TMDB e del dominio pubblicato. **Non risultano verificati il dominio finale, il runtime Coolify e la validità del token di produzione.**
+
+- L’accesso Google è **opzionale** e si attiva soltanto con `GOOGLE_CLIENT_ID` e `DATABASE_URL` in Coolify; non esporre mai password o token negli asset pubblici, non importare dati browser senza consenso, non sovrascrivere cloud non vuoto. Conservare revisioni/versioni e protezione CSRF.
+- Tema **scuro** predefinito e opzione **chiaro**; la pagina film usa il backdrop TMDB a schermo intero quando disponibile. Mantenere il contrasto, il fallback e i test.

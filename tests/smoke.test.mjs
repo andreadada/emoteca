@@ -8,14 +8,14 @@ import { fileURLToPath } from 'node:url';
 const read = (file) => readFileSync(new URL('../' + file, import.meta.url), 'utf8');
 
 test('All browser scripts parse as JavaScript', () => {
-  for (const file of ['js/data.js', 'js/db.js', 'js/catalog-identity.js', 'js/lists.js', 'js/app.js', 'js/remote-catalog.js']) {
+  for (const file of ['js/theme.js', 'js/cloud.js', 'js/data.js', 'js/db.js', 'js/catalog-identity.js', 'js/lists.js', 'js/app.js', 'js/remote-catalog.js']) {
     assert.doesNotThrow(() => new Script(read(file), { filename: file }));
   }
 });
 
 test('App loads the explorer and cinematic stylesheet after core assets', () => {
   const html = read('index.html');
-  for (const file of ['styles-cinema.css', 'styles-reframe.css', 'js/data.js', 'js/db.js', 'js/catalog-identity.js', 'js/lists.js', 'js/app.js', 'js/remote-catalog.js']) {
+  for (const file of ['styles-cinema.css', 'styles-reframe.css', 'styles-personalization.css', 'js/theme.js', 'js/cloud.js', 'js/data.js', 'js/db.js', 'js/catalog-identity.js', 'js/lists.js', 'js/app.js', 'js/remote-catalog.js']) {
     assert.ok(existsSync(new URL('../' + file, import.meta.url)), 'Missing ' + file);
     assert.ok(html.includes(file), 'HTML does not include ' + file);
   }
@@ -168,7 +168,7 @@ test('Remote poster refresh only modifies image slots, never action buttons', ()
   assert.ok(css.includes('.detail-poster > .poster-image'));
   const html = read('index.html');
   assert.ok(html.includes('styles-cinema.css?v=20261104-multilists'));
-  assert.ok(html.includes('js/app.js?v=20261104-multilists'));
+  assert.ok(html.includes('js/app.js?v=20261104-cloud-account'));
 });
 
 test('Catalog identity deduplicates legacy seeds and protects personal history', () => {
@@ -246,7 +246,7 @@ test('Library filters use multi-select theme tags, Horror, local search and clea
   assert.ok(app.includes("query='';") && app.includes("selectedThemes.clear()"));
   assert.ok(css.includes('.theme-tag.active') && css.includes('.library-searchbox'));
   assert.ok(html.includes('styles-cinema.css?v=20261104-multilists'));
-  assert.ok(html.includes('js/app.js?v=20261104-multilists'));
+  assert.ok(html.includes('js/app.js?v=20261104-cloud-account'));
 });
 
 test('Global catalog has genre chips, Anime and a separate reset button', () => {
@@ -348,7 +348,7 @@ test('Personal collections UI supports multiple lists, backup and list managemen
     'JSON backup must include the stored membership record without replacing it with a synthetic fallback');
   assert.ok(app.includes("listSnapshot:jsonPlan.listSnapshot"),'JSON import should restore lists');
   assert.ok(css.includes('.personal-list-tab.active'));
-  assert.ok(html.includes('js/app.js?v=20261104-multilists'));
+  assert.ok(html.includes('js/app.js?v=20261104-cloud-account'));
   assert.ok(html.includes('styles-cinema.css?v=20261104-multilists'));
 });
 

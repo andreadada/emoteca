@@ -183,6 +183,21 @@ Nota legale: TMDB richiede attribuzione ed ha un utilizzo gratuito previsto per 
 
 **Post merge:** redeploy Coolify branch `main`, aprire /styles-reframe.css? versione attuale per verificare che ritorni 200, ricaricare la pagina, esportare un backup locale, verificare 35 titoli e le note, provare nuova lista e scheda film. Se il toast persiste, utilizzare il messaggio dettagliato e la console per investigare il record esistente, **senza mutarlo**.
 
+## 4 novembre 2026 — Tema scuro + backdrop + utenti Google
+
+**PR #11**: `feat/dark-backdrop-google-accounts`. Richiesta: ritorno allo scuro (con tema chiaro alternativo), riprogettazione **completa della scheda film** con backdrop TMDB sull'intera pagina, accesso Google per avere liste e diario privati per account/dispositivo.
+
+**File introdotti:** `styles-personalization.css`, `js/theme.js`, `js/cloud.js`, `server/user-api.mjs`, `server/package.json`, `docs/GOOGLE-THEMES-BACKDROP.md`, `tests/account.test.mjs`.
+**File aggiornati:** index, app, db, catalog-api, nginx, Dockerfile, test API e Playwright.
+- Tema scuro predefinito, chiaro opzionale via localStorage.
+- Film detail: backdrop TMDB diventa sfondo pagina; metadati cast/regia/writers/trailer via `append_to_response=credits,videos`, con fallback senza dati.
+- Account: Google Identity Services ID token verificato lato server (firma JWKS RSA, audience ecc.), sessione cookie HttpOnly Secure, CSRF e Origin; PostgreSQL `emoteca_users`, `emoteca_sessions`, `emoteca_documents`.
+- `CatalogDB` instrada operazioni del cloud solo se sessione Google verificata. Guest mantiene IndexedDB invariato. Cloud usa versioni ottimistiche `expectedVersion` per impedire overwrite concorrenti (409).
+- Copia iniziale dal guest **solo su consenso esplicito** e soltanto se archivio cloud è vuoto/revisione zero. Non implementare merge/sovrascrittura di account con dati esistenti senza UI specifica.
+- Senza `GOOGLE_CLIENT_ID` e `DATABASE_URL` il login resta disabilitato, anche con frontend pubblicato. La password PostgreSQL è una variabile privata di Coolify, non nel repository.
+
+**Prima del merge:** controllare CI Node + Docker/Chromium della PR #11 e screenshot dark/light desktop/mobile. **Dopo merge:** redeploy Coolify, configurare Google Cloud Web App origine `https://film.ddone.it`, attivare PostgreSQL persistente e variabili. Testare login reale, import dei vecchi 35 film, refresh, più dispositivi, logout e assenza regressioni nei dati locali. Leggi [GOOGLE-THEMES-BACKDROP.md](GOOGLE-THEMES-BACKDROP.md). Non dichiarare account funzionante in produzione senza le credenziali.
+
 ## 4. Cosa fare ADESSO — roadmap prioritaria
 
 ### P0 — Portare online e validare

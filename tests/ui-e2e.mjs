@@ -491,6 +491,81 @@ await scenario('long film IDs and malformed list records preserve the personal d
   assert.ok(payload.backupWarning);
 });
 
+await scenario('dark light selection, cinematic TMDB backdrop and Google account availability',
+  {width:1440,height:900},async page=>{
+  assert.equal(await page.evaluate(()=>document.documentElement.dataset.theme),'dark',
+    'Dark is the first-visit default');
+  await page.locator('[data-theme-choice="light"]').click();
+  assert.equal(await page.evaluate(()=>document.documentElement.dataset.theme),'light');
+  assert.equal(await page.locator('[data-theme-choice="light"]').getAttribute('aria-pressed'),'true');
+  await page.reload({waitUntil:'domcontentloaded'});
+  assert.equal(await page.evaluate(()=>document.documentElement.dataset.theme),'light',
+    'Chosen theme must persist after refresh');
+  await page.locator('[data-theme-choice="dark"]').click();
+  await page.locator('#account-button').click();
+  assert.ok(await page.locator('#account-dialog').isVisible());
+  assert.match(await page.locator('#account-summary').textContent(),/configura le credenziali/i,
+    'Unconfigured Google access must not pretend to offer a working login');
+  await page.locator('#account-dialog [data-close-account]').click();
+
+  const remote={
+    id:'tmdb-movie-1294189',provider:'tmdb',source:'TMDB',sourceId:'1294189',
+    media:'movie',type:'film',title:'The Mongoose',year:2026,
+    description:'Un veterano in fuga affronta il suo destino.',
+    genre:'Azione · Thriller',duration:'99 min',
+    poster:'https://image.tmdb.org/t/p/w500/fictionalposter.jpg',
+    backdrop:'https://image.tmdb.org/t/p/w1280/fictionalbackdrop.jpg',
+    voteAverage:7.2,cast:[{name:'Primo attore',role:'Protagonista'}],
+    directors:['Regista di prova'],writers:['Sceneggiatore di prova'],
+    trailerUrl:'https://www.youtube.com/watch?v=abcdefghijk',
+    sourceUrl:'https://www.themoviedb.org/movie/1294189'
+  };
+  await page.route('**/api/catalog/detail?**',route=>route.fulfill({
+    status:200,contentType:'application/json',
+    body:JSON.stringify({source:'TMDB',item:remote})
+  }));
+  // The preview image is a test fixture: no real TMDB film artwork is bundled.
+  await page.route('**/fictionalbackdrop.jpg',route=>route.fulfill({
+    status:200,contentType:'image/svg+xml',
+    body:'<svg xmlns="http://www.w3.org/2000/svg" width="1440" height="960"><defs><linearGradient id="g" x2="1" y2="0"><stop stop-color="#1c2e34"/><stop offset=".6" stop-color="#28535a"/><stop offset="1" stop-color="#b04b38"/></linearGradient></defs><rect width="1440" height="960" fill="url(#g)"/><circle cx="1140" cy="270" r="260" fill="#c17856" opacity=".7"/></svg>'
+  }));
+  await page.evaluate(film=>window.AfterframeCatalog.openExternal(film,false),remote);
+  await page.locator('#detail-cinema-backdrop .detail-cinema-image').waitFor();
+  assert.ok(await page.locator('.detail-film-extras').isVisible());
+  assert.equal(await page.locator('.detail-extras-heading h3').textContent(),'Dietro la storia.');
+  assert.equal(await page.locator('.detail-cast-person').count(),1);
+  const bg=await page.evaluate(()=>{
+    const rect=document.querySelector('#detail-cinema-backdrop').getBoundingClientRect();
+    const page=document.querySelector('#detail-screen').getBoundingClientRect();
+    return {width:rect.width,viewport:innerWidth,pageHeight:page.height};
+  });
+  assert.ok(bg.width>=bg.viewport-2,'The TMDB backdrop must span the viewport');
+  await page.waitForFunction(()=>document.querySelector('.detail-cinema-image')?.naturalWidth>0);
+  const opaque=await page.evaluate(()=>getComputedStyle(document.querySelector('#detail-screen .detail-page-content')).backgroundColor);
+  assert.ok(opaque==='rgba(0, 0, 0, 0)'||opaque==='transparent',
+    'Legacy opaque detail surface must not hide the cinematic background: '+opaque);
+  assert.ok(bg.pageHeight>=650,'The backdrop must cover the entire film page');
+  assert.equal(await page.locator('#detail-screen .detail-hero .detail-backdrop').count(),0,
+    'Backdrop should not be a small overlay inside the old hero card');
+  await page.screenshot({path:'ui-screenshots/dark-immersive-film-page.png',fullPage:true});
+  await page.locator('[data-theme-choice="light"]').click();
+  await page.screenshot({path:'ui-screenshots/light-immersive-film-page.png',fullPage:true});
+});
+
+await scenario('dark theme header and movie pages stay usable on mobile',
+ {width:390,height:844},async page=>{
+  assert.equal(await page.evaluate(()=>document.documentElement.dataset.theme),'dark');
+  assert.ok(await page.locator('#account-button').isVisible());
+  assert.ok(await page.locator('[data-theme-choice="light"]').isVisible());
+  const overflow=await page.evaluate(()=>document.documentElement.scrollWidth-innerWidth);
+  assert.ok(overflow<=1,'Theme and account controls must not overflow 390px masthead: '+overflow);
+  await page.locator('[data-theme-choice="light"]').click();
+  await page.locator('.nav-link[data-view="all"]').click();
+  assert.equal(await page.locator('#film-grid .film-card').count(),34,
+    'Appearance changes must never mutate personal film records');
+  await page.screenshot({path:'ui-screenshots/mobile-account-theme.png',fullPage:true});
+});
+
 await scenario('personal lists migrate, create, rename and delete safely', {width:1440,height:900}, async page=>{
   await page.locator('.nav-link[data-view="all"]').click();
   assert.equal(await page.locator('#section-title').textContent(),'La mia lista');
