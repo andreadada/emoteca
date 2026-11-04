@@ -119,10 +119,12 @@ async function handle(req, res) {
     }
     if (url.pathname === '/api/catalog/discover') {
       const page = clampPage(url.searchParams.get('page'));
-      const media = typeOf(url.searchParams.get('type') || 'movie');
-      if (!page || !media) return respond(res, 400, { error: 'Pagina o formato non valido.' });
-      const data = await fetchTMDB('/discover/' + media, {
-        language: 'it-IT', include_adult: false, sort_by: 'popularity.desc', page
+      const requested = url.searchParams.get('type') || 'all';
+      const media = requested === 'all' ? null : typeOf(requested);
+      if (!page || (requested !== 'all' && !media)) return respond(res, 400, { error: 'Pagina o formato non valido.' });
+      const path = media ? '/discover/' + media : '/trending/all/week';
+      const data = await fetchTMDB(path, {
+        language: 'it-IT', page, ...(media ? { include_adult: false, sort_by: 'popularity.desc' } : {})
       });
       return respond(res, 200, formatPage(data, media));
     }
