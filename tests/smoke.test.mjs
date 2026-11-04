@@ -216,6 +216,29 @@ test('Library filters use multi-select theme tags, Horror, local search and clea
   assert.ok(html.includes('js/app.js?v=20261104-libraryfilters'));
 });
 
+test('Global catalog has genre chips, Anime and a separate reset button', () => {
+  const html=read('index.html'),client=read('js/remote-catalog.js'),server=read('server/catalog-api.mjs');
+  for(const id of ['global-type','global-themes','catalog-query','clear-global-filters']) {
+    assert.ok(html.includes('id="'+id+'"'),'Missing global catalog control '+id);
+  }
+  assert.ok(html.indexOf('id="global-type"')<html.indexOf('id="global-themes"'));
+  assert.ok(html.indexOf('id="global-themes"')<html.indexOf('id="catalog-search-form"'));
+  assert.ok(html.includes('data-catalog-type="anime"'), 'Anime is a distinct global category');
+  assert.ok(html.includes('data-global-theme="horror"'),'Horror must be a selectable global genre');
+  assert.ok(html.includes('data-global-theme="all"'),'All themes toggle exists');
+  assert.ok(html.includes('id="clear-global-filters"'));
+  assert.ok(client.includes("const selectedThemes = new Set()"));
+  assert.ok(client.includes("function clearFilters()"));
+  assert.ok(client.includes("function toggleTheme(value)"));
+  assert.ok(client.includes("args.type==='anime'"));
+  assert.ok(server.includes('function matchesGenres('));
+  assert.ok(server.includes("params.with_original_language = 'ja'"), 'TMDB Japanese animation criteria');
+  assert.ok(server.includes("url.searchParams.get('genres')"), 'Server filters must receive topics');
+  assert.ok(server.includes("filteredSearch ? null"), 'Do not claim exact counts when text search is filtered');
+  assert.ok(html.includes('js/remote-catalog.js?v=20261104-globaltags'));
+  assert.ok(html.includes('styles-cinema.css?v=20261104-globaltags'));
+});
+
 test('Preserve original IndexedDB name and JSON backup format', () => {
   assert.ok(read('js/db.js').includes('afterframe-catalog-v1'));
   assert.ok(read('js/app.js').includes("format:'afterframe-catalog'"));
