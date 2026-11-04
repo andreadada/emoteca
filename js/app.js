@@ -9,7 +9,7 @@ const typeNames={film:'Film',anime:'Anime',serie:'Serie TV','film-anime':'Film a
 const scoreNames={emotion:'Emozione',comedy:'Commedia',action:'Azione',romance:'Romanticismo',tension:'Tensione'};
 const statusNames={watchlist:'Da guardare',watching:'In corso',watched:'Già visto'};
 const reactNames={unseen:'Non visto',cried:'Ho pianto',moved:'Mi ha commosso',nothing:'Non mi ha colpito'};
-let films=[],view='discover',typeFilter='all',selectedThemes=new Set(),sortFilter='match',query='',editFilmId=null,detailId=null,jsonPlan=null,posterQueue=[],posterActive=false;
+let films=[],lists=[],selectedListId='mia-lista',listDialogMode='create',view='discover',typeFilter='all',selectedThemes=new Set(),sortFilter='match',query='',editFilmId=null,detailId=null,jsonPlan=null,posterQueue=[],posterActive=false;
 let featuredId=null, remoteSelection=null, detailBackView='discover';
 const posterFailed=new Set();
 const posterCache=new Map();const posterTried=new Set();
@@ -17,7 +17,9 @@ try{const cache=JSON.parse(localStorage.getItem('afterframe-poster-cache')||'{}'
 function fallback(f){return `<div class="poster-fallback"><strong>${esc(f.title)}</strong><span>${esc(f.year)}</span></div>`;}
 function posterMarkup(f,eager=false){const src=(manuallySetPoster(f)?safeUrl(f.poster):'')||safeUrl(posterCache.get(f.id))||(!posterFailed.has(f.id)&&safeUrl(f.poster));return `${fallback(f)}${src?`<img class="poster-image" src="${esc(src)}" alt="Locandina di ${esc(f.title)}" width="320" height="480" loading="${eager?'eager':'lazy'}" fetchpriority="${eager?'high':'auto'}" decoding="async" onerror="this.remove();window.EmotecaPosterFailed?.(\'${esc(f.id)}\')" />`:''}`;}
 function toast(msg,isError=false){const root=$('#toast-root'),el=document.createElement('div');el.className='toast'+(isError?' error':'');el.textContent=msg;root.append(el);setTimeout(()=>el.remove(),4000);}
-function currentFilms(){let arr=films.filter(f=>query?true:view==='discover'?f.status!=='watched':view==='all'?true:view==='watchlist'?f.status!=='watched':view==='watched'?f.status==='watched':view==='favorites'?f.favorite:true);
+function selectedList(){return lists.find(l=>l.id===selectedListId)||lists[0]||{id:'mia-lista',name:'La mia lista',filmIds:[]};}
+function currentFilms(){const members=new Set(selectedList().filmIds);
+ let arr=films.filter(f=>view==='discover'?f.status!=='watched':view==='all'?members.has(f.id):view==='watchlist'?f.status!=='watched':view==='watched'?f.status==='watched':view==='favorites'?f.favorite:true);
  if(typeFilter!=='all')arr=arr.filter(f=>f.type===typeFilter);
  if(selectedThemes.size)arr=arr.filter(f=>themeValues(f).some(theme=>selectedThemes.has(theme)));
  if(query){const q=normal(query);arr=arr.filter(f=>normal([f.title,f.genre,f.year,f.description,f.why,...f.tags].join(' ')).includes(q));}
@@ -26,12 +28,12 @@ function currentFilms(){let arr=films.filter(f=>query?true:view==='discover'?f.s
 const titles={
  discover:['La tua selezione','Le storie che hai scelto di tenere a portata di mano.'],
  explore:['Tutti i film','Cerca film e serie nei cataloghi internazionali.'],
- all:['La libreria','Tutti i titoli del tuo archivio personale.'],
+ all:['La mia lista','I tuoi film organizzati in raccolte personali.'],
  watchlist:['Da guardare','Film e serie ancora da vedere.'],
  watched:['Già visti','Le visioni che hai registrato.'],
  favorites:['I preferiti','I titoli a cui vuoi tornare.']
 };
-const viewLabels={discover:'In evidenza',explore:'Tutti i film',all:'Libreria',watchlist:'Da guardare',watched:'Visti',favorites:'Preferiti'};
+const viewLabels={discover:'In evidenza',explore:'Tutti i film',all:'Le mie liste',watchlist:'Da guardare',watched:'Visti',favorites:'Preferiti'};
 function featuredFilm(){
  const candidates=films.filter(f=>f.status!=='watched'&&f.reaction==='unseen');
  if(!candidates.length){featuredId=null;return null;}
@@ -49,7 +51,7 @@ function renderFeatured(){
  const f=featuredFilm(),hero=$('#hero');
  if(!f){hero.innerHTML='';hero.hidden=true;return;}
  hero.innerHTML=`<div class="feature-story">
-  <p class="feature-context">Dalla tua libreria <span class="feature-line" aria-hidden="true"></span> In evidenza</p>
+  <p class="feature-context">Dalle tue liste <span class="feature-line" aria-hidden="true"></span> In evidenza</p>
   <p class="feature-meta">${esc(typeNames[f.type])}<span aria-hidden="true">/</span>${esc(f.year)}${f.duration?`<span aria-hidden="true">/</span>${esc(f.duration)}`:''}</p>
   <h2 class="feature-title">${esc(f.title)}</h2>
   <p class="feature-description">${esc(f.description||'Apri la scheda per conoscere questo titolo.')}</p>
@@ -71,12 +73,25 @@ function renderRail(){
  rail.innerHTML=picks.map(f=>card(f)).join('');
  $('#reel-section').hidden=view!=='discover'||!!query||picks.length===0;
 }
+function renderListTabs(){
+ const root=$('#personal-list-tabs');
+ root.innerHTML=lists.map(list=>{
+   const active=list.id===selectedList().id;
+   return `<button type="button" class="personal-list-tab ${active?'active':''}"
+      data-list-tab="${esc(list.id)}" aria-pressed="${active?'true':'false'}">
+      <span>${esc(list.name)}</span><span class="list-tab-count">${list.filmIds.length}</span>
+   </button>`;
+ }).join('');
+ $('#personal-lists').hidden=view!=='all';
+ $('#personal-list-management').hidden=view!=='all';
+ $('#personal-list-management [data-action="delete-list"]').hidden=selectedListId==='mia-lista';
+}
 function render(){
  const total=films.length;
  const watched=films.filter(f=>f.status==='watched').length;
  const watchlist=films.filter(f=>f.status!=='watched').length;
  const favorites=films.filter(f=>f.favorite).length;
- $('#count-all').textContent=total;
+ $('#count-all').textContent=lists.length;
  $('#count-watchlist').textContent=watchlist;
  $('#count-watched').textContent=watched;
  $('#count-favorites').textContent=favorites;
@@ -92,10 +107,12 @@ function render(){
  $('#explore-page').hidden=!isBrowse;
  $('#detail-screen').hidden=true;
  if(isBrowse)return;
- $('#current-view-name').textContent=query?'Risultati di ricerca':'La tua collezione';
- $('#section-title').textContent=query?'Risultati per “'+query+'”':titles[view][0];
- $('#section-caption').textContent=query?'Cerca fra tutti i titoli che hai salvato.':titles[view][1];
- $('#library-meta').textContent=`${total} ${total===1?'titolo':'titoli'} in archivio`;
+ const current=selectedList();
+ $('#current-view-name').textContent=view==='all'?'Le tue raccolte':query?'Risultati di ricerca':'La tua selezione';
+ $('#section-title').textContent=view==='all'?current.name:query?'Risultati per “'+query+'”':titles[view][0];
+ $('#section-caption').textContent=view==='all'?'I titoli di questa lista. Ogni film può appartenere a più raccolte.':titles[view][1];
+ $('#library-meta').textContent=view==='all'?current.filmIds.length+' titoli nella lista':total+' titoli personali';
+ renderListTabs();
  const home=view==='discover'&&!query;
  $('#hero').hidden=!home;
  if(home)renderFeatured();
@@ -121,6 +138,8 @@ function card(f){
   </div>
   <div class="card-content">
    <button class="card-name" type="button" data-open="${esc(f.id)}">${esc(f.title)}</button>
+   ${view==='all'? `<button class="card-remove-list" type="button" data-action="remove-from-list"
+     data-id="${esc(f.id)}" aria-label="Rimuovi ${esc(f.title)} da ${esc(selectedList().name)}">Rimuovi dalla lista</button>`:''}
    <div class="card-subtitle"><span>${esc(f.year)}</span><span aria-hidden="true">·</span><span>${esc(typeNames[f.type])}</span>${f.rating!==null?`<span class="card-rating">${icon('star')} ${f.rating}/10</span>`:''}</div>
   </div>
  </article>`;
