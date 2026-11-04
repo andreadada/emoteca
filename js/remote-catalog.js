@@ -92,9 +92,10 @@
           page: result.page || 1, totalPages: Math.min(500, result.total_pages || 1), totalResults: result.total_results || 0 };
       }
       if (kind === 'discover') {
-        const media = args.type === 'tv' ? 'tv' : 'movie';
-        const result = await tmdbDirect('/discover/' + media,
-          { page: args.page, language: 'it-IT', include_adult: 'false', sort_by: 'popularity.desc' }, signal);
+        const media = args.type === 'all' ? null : args.type === 'tv' ? 'tv' : 'movie';
+        const result = await tmdbDirect(media ? '/discover/' + media : '/trending/all/week',
+          { page: args.page, language: 'it-IT',
+            ...(media ? { include_adult: 'false', sort_by: 'popularity.desc' } : {}) }, signal);
         return { source: 'TMDB', items: (result.results || []).map((item) => tmdbItem(item, media)).filter(Boolean),
           page: result.page || 1, totalPages: Math.min(500, result.total_pages || 1), totalResults: result.total_results || 0 };
       }
@@ -260,7 +261,7 @@
           status('Per esplorare un catalogo senza limiti di ricerca, configura TMDB. Puoi comunque cercare titoli con Wikidata.');
         } else result = await wikidataSearch(query, type, signal);
       } else result = await remoteRequest(query ? 'search' : 'discover',
-        query ? { q: query, page, type } : { page, type: type === 'tv' ? 'tv' : 'movie' }, signal);
+        query ? { q: query, page, type } : { page, type }, signal);
       if (signal.aborted) return;
       if (reset) items = [];
       items.push(...(result.items || []));
