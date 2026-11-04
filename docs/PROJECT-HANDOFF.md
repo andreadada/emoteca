@@ -171,6 +171,18 @@ Nota legale: TMDB richiede attribuzione ed ha un utilizzo gratuito previsto per 
 
 **Per nuova chat:** verificare CI PR #10, screenshot Playwright e risultato sul dominio; non confondere codice GitHub con aggiornamento effettivo Coolify. Se i test danno esito diverso dalle intenzioni, investigare screenshot/console prima di intervenire su dati.
 
+## Correzione dati liste e deploy del redesign — 4 novembre 2026
+
+**Segnalazione production:** su `https://film.ddone.it/#all` (35 titoli personali) appare il toast «Le liste non sono leggibili: i film sono intatti» e il layout è ancora dark. Quest'ultimo non è un problema di cache fino a prova contraria: `main` non conteneva `styles-reframe.css` perché la PR #10 era ancora aperta. Verificare merge PR #10, commit `main`, container Coolify e CSS con HTTP 200 **prima** di chiedere un hard refresh.
+
+**Bug identificato nella validazione:** `js/app.js/validateFilm` permette ID fino a 90 caratteri, mentre il vecchio `js/lists.js/normalize` condivideva una regex di max 64 caratteri per *ID lista* e *ID film*. Un ID film legittimo da 65–90 caratteri può far fallire il caricamento di tutta la raccolta. Ora esistono regex separate per list IDs (max 64) e film IDs (max 90). L'errore specifico della persona non è verificabile senza leggere il suo IndexedDB: non attribuirlo con certezza a questa causa finché non osservato dopo il fix.
+
+**Protezione aggiunta:** `listStorageError` attiva sola lettura delle liste in caso di record persistente invalido/illeggibile; le modifiche al diario scrivono soltanto i film (`CatalogDB.write`) anziché `writeSnapshot`, per non sovrascrivere il record delle liste con un fallback generato; il backup JSON legge il record originale con `CatalogDB.readLists` se possibile, altrimenti annota `backupWarning`. L'errore mostrato ora include il messaggio tecnico; la console annota l'eccezione. Non pulire IndexedDB e non usare Ripristina catalogo per testare questo caso. I browser test riproducono ID lunghi e record di liste invalidi, verificando che i dati restino intatti.
+
+**UI mobile:** la PR include contenimento degli scroller orizzontali e guardrail sui viewport; confrontare gli screenshot Playwright 390px e 1440px con i risultati CI prima del merge. CSS nuovo è copiato nell'immagine produzione dal Dockerfile aggiornato.
+
+**Post merge:** redeploy Coolify branch `main`, aprire /styles-reframe.css? versione attuale per verificare che ritorni 200, ricaricare la pagina, esportare un backup locale, verificare 35 titoli e le note, provare nuova lista e scheda film. Se il toast persiste, utilizzare il messaggio dettagliato e la console per investigare il record esistente, **senza mutarlo**.
+
 ## 4. Cosa fare ADESSO — roadmap prioritaria
 
 ### P0 — Portare online e validare
