@@ -47,8 +47,10 @@
      config.enabled?'Accedi per sincronizzare le tue liste tra dispositivi.':'Per attivare Google, configura le credenziali su Coolify.';
    const sign=$('#google-signin-container');
    const logout=$('#account-logout');
+   const deletion=$('#account-delete');
    if(sign)sign.hidden=Boolean(user);
    if(logout)logout.hidden=!user;
+   if(deletion)deletion.hidden=!user;
  }
  async function loadGIS(){
    if(window.google?.accounts?.id)return;
@@ -120,6 +122,12 @@
    await request('/api/user/logout',{method:'POST',body:{}});
    location.reload();
  }
+ async function deleteAccount(){
+   const answer=prompt('Per eliminare definitivamente il tuo account e tutte le liste e note cloud, digita ELIMINA. I dati di questo browser non saranno cancellati.');
+   if(answer!=='ELIMINA')return;
+   await request('/api/user/delete',{method:'POST',body:{confirm:'ELIMINA'}});
+   location.reload();
+ }
  async function snapshot(){
    await init();
    if(!active)throw Error('Utente non autenticato.');
@@ -136,6 +144,7 @@
  document.addEventListener('click',event=>{
    if(event.target.closest('#account-button'))openDialog();
    if(event.target.closest('#account-logout'))logout().catch(error=>alert(error.message));
+   if(event.target.closest('#account-delete'))deleteAccount().catch(error=>alert(error.message));
    if(event.target.closest('[data-close-account]')){
      const dialog=event.target.closest('dialog');
      if(dialog?.open)dialog.close();
