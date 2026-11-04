@@ -5,12 +5,13 @@
 1. [docs/PROJECT-HANDOFF.md](docs/PROJECT-HANDOFF.md) — **fonte canonica dello stato attuale, roadmap e limiti**.
 2. [docs/DEPLOY-COOLIFY.md](docs/DEPLOY-COOLIFY.md) — pubblicazione e diagnostica Coolify.
 3. [docs/CATALOG-V3.md](docs/CATALOG-V3.md) — provider, API e vincoli delle licenze.
-4. `README.md` e **codice attuale del branch `main`**.
+4. [docs/PERSONAL-LISTS.md](docs/PERSONAL-LISTS.md) — liste personali multiple, migrazione e backup.
+5. `README.md` e **codice attuale del branch `main`**.
 
 ## Invarianti da preservare
 
 - Emoteca 3.0 è HTML/CSS/JS con Nginx su porta interna 80 e un proxy Node sulla sola loopback 8787. Non presupporre React/Next.js o un DB server.
-- **Catalogo mondiale remoto ≠ libreria personale**; la libreria rimane nel browser (IndexedDB `afterframe-catalog-v1`, backup JSON `afterframe-catalog`), senza account o sync.
+- **Catalogo mondiale remoto ≠ liste personali**: il catalogo TMDB/Wikidata è globale; le raccolte personali sono in IndexedDB `afterframe-catalog-v1`, con film in `state/all-films` e membership in `state/personal-lists-v1`. Il backup JSON `afterframe-catalog` contiene `films` e `lists`. Nessun account o sync.
 - Non cancellare, sovrascrivere o migrare dati locali senza backup verificabile, piano e richiesta esplicita.
 - Il token TMDB vive in una variabile di ambiente **runtime** `TMDB_READ_TOKEN` dentro Coolify. Non esporlo in codice frontend, log, documentazione, screenshot o test.
 - Non promettere “tutti i film” o “tutte le locandine”: TMDB e Wikidata hanno limiti di copertura/licenze. Test API attuali usano **mock**, non confermano accesso live TMDB.
