@@ -227,6 +227,83 @@ await scenario('preloaded films are catalog entries without duplicate library ro
   await page.screenshot({path:'ui-screenshots/global-and-seed-linked.png',fullPage:true});
 });
 
+await scenario('global theme toggle, Anime browsing and search reset', {width:1440,height:900}, async page=>{
+  const anime={id:'tmdb-tv-77',provider:'tmdb',source:'TMDB',sourceId:'77',media:'tv',
+    type:'serie',title:'Anime di prova',originalTitle:'Anime no test',year:2020,
+    poster:'',description:'Anime da TMDB',sourceUrl:'https://www.themoviedb.org/tv/77'};
+  const horror={id:'tmdb-movie-123',provider:'tmdb',source:'TMDB',sourceId:'123',media:'movie',
+    type:'film',title:'Horror di prova',originalTitle:'Horror test',year:2024,
+    poster:'',description:'Film Horror',sourceUrl:'https://www.themoviedb.org/movie/123'};
+  const urls=[];
+  await page.route('**/api/catalog/status',route=>route.fulfill({
+    status:200,contentType:'application/json',
+    body:JSON.stringify({provider:'tmdb',enabled:true})
+  }));
+  await page.route('**/api/catalog/discover?**',route=>{
+    const url=new URL(route.request().url);urls.push(url);
+    const type=url.searchParams.get('type');
+    const genres=url.searchParams.get('genres');
+    const items=type==='anime'?[anime]:genres==='horror'?[horror]:[anime,horror];
+    return route.fulfill({status:200,contentType:'application/json',
+      body:JSON.stringify({source:'TMDB',items,page:1,totalPages:2,totalResults:10})});
+  });
+  await page.route('**/api/catalog/search?**',route=>{
+    const url=new URL(route.request().url);urls.push(url);
+    const items=url.searchParams.get('type')==='anime'?[anime]:[anime,horror];
+    return route.fulfill({status:200,contentType:'application/json',
+      body:JSON.stringify({source:'TMDB',items,page:1,totalPages:2,totalResults:null,filteredSearch:true})});
+  });
+  await page.route('**/api/catalog/poster?**',route=>route.fulfill({
+    status:200,contentType:'application/json',body:JSON.stringify({item:null})
+  }));
+  await page.reload({waitUntil:'domcontentloaded'});
+  await page.locator('.nav-link[data-view="explore"]').click();
+  await page.locator('#global-grid .global-film').first().waitFor();
+  assert.ok(await page.locator('#global-themes [data-global-theme="horror"]').isVisible());
+  assert.ok(await page.locator('#global-type [data-catalog-type="anime"]').isVisible());
+  assert.equal(await page.locator('#clear-global-filters').isDisabled(),true);
+  const order=await page.evaluate(()=>({
+    types:document.querySelector('#global-type').getBoundingClientRect().top,
+    themes:document.querySelector('#global-themes').getBoundingClientRect().top,
+    search:document.querySelector('#catalog-query').getBoundingClientRect().top
+  }));
+  assert.ok(order.types<order.themes&&order.themes<order.search);
+  await page.locator('#global-themes [data-global-theme="horror"]').click();
+  await page.waitForFunction(()=>document.querySelector('#global-grid .card-name')?.textContent==='Horror di prova');
+  assert.equal(await page.locator('#global-themes [data-global-theme="horror"]').getAttribute('aria-pressed'),'true');
+  assert.ok(urls.some(u=>u.pathname.endsWith('/discover')&&u.searchParams.get('genres')==='horror'));
+  await page.locator('#global-themes [data-global-theme="fantasy"]').click();
+  await page.waitForFunction(()=>document.querySelector('#global-themes [data-global-theme="fantasy"]')?.getAttribute('aria-pressed')==='true');
+  assert.ok(urls.some(u=>u.pathname.endsWith('/discover')&&u.searchParams.get('genres')==='fantasy,horror'));
+  await page.locator('#global-type [data-catalog-type="anime"]').click();
+  await page.waitForFunction(()=>document.querySelector('#global-grid .card-name')?.textContent==='Anime di prova');
+  assert.ok(urls.some(u=>u.searchParams.get('type')==='anime'));
+  await page.locator('#catalog-query').fill('anime');
+  await page.waitForFunction(()=>document.querySelector('#catalog-count')?.textContent.includes('corrispondenze'),null,{timeout:9000});
+  assert.ok(urls.some(u=>u.pathname.endsWith('/search')&&u.searchParams.get('type')==='anime'&&u.searchParams.get('q')==='anime'));
+  assert.equal(await page.locator('#clear-global-filters').isDisabled(),false);
+  await page.screenshot({path:'ui-screenshots/desktop-global-theme-filters.png',fullPage:true});
+  await page.locator('#clear-global-filters').click();
+  await page.waitForFunction(()=>document.querySelector('#global-type [data-catalog-type="all"]')?.getAttribute('aria-pressed')==='true');
+  assert.equal(await page.locator('#catalog-query').inputValue(),'');
+  assert.equal(await page.locator('#global-themes [data-global-theme="all"]').getAttribute('aria-pressed'),'true');
+  assert.equal(await page.locator('#global-themes [aria-pressed="true"]').count(),1);
+  assert.equal(await page.locator('#clear-global-filters').isDisabled(),true);
+});
+
+await scenario('global chips and Anime do not overflow mobile', {width:390,height:844}, async page=>{
+  await page.locator('.nav-link[data-view="explore"]').click();
+  await page.locator('#global-type [data-catalog-type="anime"]').click();
+  await page.locator('#global-themes [data-global-theme="horror"]').click();
+  assert.equal(await page.locator('#global-type [data-catalog-type="anime"]').getAttribute('aria-pressed'),'true');
+  assert.equal(await page.locator('#global-themes [data-global-theme="horror"]').getAttribute('aria-pressed'),'true');
+  const excess=await page.evaluate(()=>document.documentElement.scrollWidth-window.innerWidth);
+  assert.ok(excess<=1,'Global filter row must not overflow: '+excess);
+  await page.screenshot({path:'ui-screenshots/mobile-global-theme-filters.png',fullPage:true});
+  await page.locator('#clear-global-filters').click();
+  assert.equal(await page.locator('#global-type [data-catalog-type="all"]').getAttribute('aria-pressed'),'true');
+});
+
 await scenario('library genre chips and clear-all filter UI', { width: 1440, height: 900 }, async page => {
   await page.evaluate(async () => {
     await window.AfterframeCatalog.addExternal({
