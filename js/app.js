@@ -49,15 +49,27 @@ function featuredFilm(){
 }
 function renderFeatured(){
  const f=featuredFilm(),hero=$('#hero');
- if(!f){hero.innerHTML='';hero.hidden=true;return;}
+ if(!f){
+   hero.hidden=false;
+   hero.classList.add('feature-empty');
+   hero.innerHTML=`<div class="feature-story">
+     <p class="feature-context">La prossima storia</p>
+     <h2 class="feature-title">Hai visto tutto ciò che hai salvato.</h2>
+     <p class="feature-description">Esplora il catalogo e scegli il prossimo film da ricordare.</p>
+     <div class="feature-actions"><button class="button primary" type="button" data-view="explore">Trova un film ${icon('arrow')}</button></div>
+    </div><div class="feature-art" aria-hidden="true"><span class="feature-empty-mark">emoteca.</span></div>`;
+   return;
+ }
+ hero.hidden=false;
+ hero.classList.remove('feature-empty');
  hero.innerHTML=`<div class="feature-story">
-  <p class="feature-context">Dalle tue liste <span class="feature-line" aria-hidden="true"></span> In evidenza</p>
+  <p class="feature-context">Un film dalla tua lista <span class="feature-line" aria-hidden="true"></span> Per te</p>
   <p class="feature-meta">${esc(typeNames[f.type])}<span aria-hidden="true">/</span>${esc(f.year)}${f.duration?`<span aria-hidden="true">/</span>${esc(f.duration)}`:''}</p>
   <h2 class="feature-title">${esc(f.title)}</h2>
   <p class="feature-description">${esc(f.description||'Apri la scheda per conoscere questo titolo.')}</p>
   <div class="feature-actions">
-   <button class="button primary" type="button" data-open="${esc(f.id)}">Apri la scheda ${icon('arrow')}</button>
-   <button class="button quiet" type="button" data-view="watchlist">Apri la watchlist</button>
+   <button class="button primary" type="button" data-open="${esc(f.id)}">Scopri il film ${icon('arrow')}</button>
+   <button class="button quiet" type="button" data-action="mark-feature-watched" data-id="${esc(f.id)}">${icon('check')} Già visto</button>
   </div>
  </div>
  <div class="feature-art" aria-hidden="true">
@@ -115,6 +127,7 @@ function render(){
  renderListTabs();
  const home=view==='discover'&&!query;
  $('#hero').hidden=!home;
+ $('#collection-section').hidden=home;
  if(home)renderFeatured();
  renderRail();
  const arr=currentFilms();
@@ -634,6 +647,15 @@ function onClick(e){const clos=e.target.closest('[data-close]');if(clos){closeDi
  const open=e.target.closest('[data-open]');if(open){showDetail(open.dataset.open);return;}
  const action=e.target.closest('[data-action]');if(!action)return;const id=action.dataset.id;
  switch(action.dataset.action){
+ case'mark-feature-watched':{
+   const selected=films.find(item=>item.id===id);
+   if(selected&&selected.status!=='watched'){
+     changeFilm(id,{status:'watched',reaction:selected.reaction==='unseen'?'unseen':selected.reaction})
+       .then(()=>toast('Film segnato come visto.'))
+       .catch(error=>toast(error.message,true));
+   }
+   break;
+ }
  case'create-list':openListDialog('create');break;
  case'rename-list':openListDialog('rename');break;
  case'delete-list':removeSelectedList();break;
