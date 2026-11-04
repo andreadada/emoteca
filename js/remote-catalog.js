@@ -215,7 +215,10 @@
       const entity = data.entities?.[id];
       if (!entity || entity.missing !== undefined) return [];
       const kind = wikidataType(entity);
-      if (!kind || (mediaType === 'movie' && kind === 'serie') || (mediaType === 'tv' && kind !== 'serie')) return [];
+      if (!kind ||
+          (mediaType === 'movie' && (kind === 'serie' || kind === 'anime')) ||
+          (mediaType === 'tv' && kind !== 'serie' && kind !== 'anime') ||
+          (mediaType === 'anime' && kind !== 'anime')) return [];
       const title = entity.labels?.it?.value || entity.labels?.en?.value || '';
       if (!title) return [];
       const filename = property(entity, 'P18');
@@ -290,6 +293,9 @@
       </article>`;
     }).join('');
     $('#catalog-empty').hidden = items.length !== 0 || !hasSearched;
+    $('#catalog-empty p').textContent = page < pages
+      ? 'Nessuna corrispondenza in questa pagina. Prova Mostra altri film.'
+      : 'Nessun risultato da questa fonte. Prova un titolo diverso, anche nella lingua originale.';
     $('#global-next').hidden = page >= pages || catalogMode()==='wikidata';
   }
   function setSourceStatus() {
@@ -358,6 +364,9 @@
       renderResults();
       if (catalogMode()==='wikidata' && (selectedThemes.size||!query)) {
         // Provider limitation is the intended message, not "no results".
+      } else if(type==='tv' && selectedThemes.size &&
+          !genreKeys().some(key=>GENRES[key].tv.length)) {
+        status('TMDB non classifica questi generi per le serie TV. Seleziona Film o altri temi.');
       } else if(query && filtered) {
         status(result.items.length
           ? 'Risultati filtrati in questa pagina TMDB · Pagina '+page+' di '+pages
