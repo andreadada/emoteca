@@ -89,7 +89,7 @@ await scenario('desktop movie and diary route', { width: 1440, height: 900 }, as
 await scenario('remote poster cannot cover homepage layout', { width: 1440, height: 900 }, async page => {
   // Reproduce what happens after Coolify receives a working TMDB token:
   // metadata arrives after the initial rendering and updates existing covers.
-  const pixel = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVQIHWP4z8DwHwAFgAI/ScLttAAAAABJRU5ErkJggg==','base64');
+  const pixel = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAIAAAADCAIAAAA2iEnWAAAAFElEQVR4nGO0iWpiYGBgYmBgQFAAFNYBHn6EXKoAAAAASUVORK5CYII=','base64');
   await page.route('**/api/catalog/status', route => route.fulfill({
     status: 200, contentType: 'application/json',
     body: JSON.stringify({ provider: 'tmdb', enabled: true, message: 'Ready' })
