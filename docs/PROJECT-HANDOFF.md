@@ -99,6 +99,16 @@ Nota legale: TMDB richiede attribuzione ed ha un utilizzo gratuito previsto per 
 - Salvataggio titoli esterni tramite `window.AfterframeCatalog.addExternal`, con validazione e deduplicazione. Aggiunta di titolo senza anno impedita finché non viene completato manualmente.
 - Operazione di import `replace` / `films:[]` può **sostituire completamente** la libreria: verificare e chiedere conferma. I dati non sono su Coolify e non vengono sincronizzati automaticamente.
 
+## Hotfix locandine — 4 novembre 2026
+
+**Segnalazione visiva in produzione:** su `https://film.ddone.it`, dopo il caricamento delle locandine esterne, un'immagine enorme con il testo grafico di una locandina occupava la homepage e copriva le card. Screenshot dell'utente disponibile nella conversazione dell'intervento, non incluso nel repository.
+
+**Causa nel codice:** in `js/app.js`, `pumpPosters()` aggiornava ogni nodo con `[data-open]` o `[data-poster]`. `[data-open]` è utilizzato sia dai veri poster sia dai pulsanti di navigazione e dai titoli. Inserire un'immagine `position:absolute; inset:0; width:100%; height:100%` dentro un pulsante senza contenitore posizionato poteva farla espandere sull'intero viewport.
+
+**Correzione:** la modifica della copertina ora interessa soltanto `.poster-wrap[data-open]`, `.feature-poster[data-poster]`, `.detail-poster[data-poster]`; il CSS per `.poster-image` è vincolato ai contenitori effettivi. `index.html` imposta un parametro di versione agli asset CSS/JS per evitare cache obsolete dopo il deploy. Test Chromium dedicato simula un proxy TMDB configurato e controlla sia la locandina in evidenza sia quelle nel reel, verificando che nessuna immagine venga inserita nei pulsanti generici.
+
+**Stato:** fix incluso nella PR del branch `fix/poster-image-layout-overflow`; controllare esito CI/merge sul repository prima di assumere che sia in `main`. **Redeploy Coolify e verifica sul dominio finale non automatici né confermati.** Dopo il deploy ricaricare `https://film.ddone.it` e controllare homepage, poster, CTA, reel e browser mobile; se necessario fare hard refresh. Non cancellare cache IndexedDB né dati personali per risolvere un bug CSS.
+
 ## 4. Cosa fare ADESSO — roadmap prioritaria
 
 ### P0 — Portare online e validare
