@@ -701,3 +701,39 @@ a:focus-visible,summary:focus-visible {
  .feature-empty .feature-title { font-size:43px; }
  .catalog-setup { padding:15px; }
 }
+
+
+/* Hidden legacy secondary surfaces receive the same contrast treatment. */
+.modal .slider-wrap { border-color:var(--ui-line); }
+.modal .slider-title,.modal .slider-title span { color:#3d5a47; }
+.modal .score-edit>label { color:#506c59;font-size:12px; }
+.modal .score-edit output { color:#27583c;font-weight:750; }
+.modal input[type=range] { accent-color:#315c42; }
+.modal .json-preview {
+  background:#f2f5ed;border:1px solid #d6dfd3;color:#395644;
+  margin:16px 35px 24px;border-radius:4px;font-size:12px;
+}
+.modal .json-preview.valid { background:#ecf5e8;border-color:#99bf9a;color:#21502a; }
+.modal .json-preview.error { background:#fff0ec;border-color:#e1afa1;color:#902e1e; }
+.modal .json-preview svg { color:#45664d; }
+.modal .json-help { color:#657d69;font-size:12px; }
+.modal .json-help a { color:#2d6842; }
+.modal .danger,.detail-bottom .danger { color:#a8392b!important;border-color:#e0b6ac; }
+.modal .danger:hover,.detail-bottom .danger:hover { background:#fff1eb!important;border-color:#ce7662!important;color:#8d281c!important; }
+.profile-details .score-row { color:#56705c;font-size:12px; }
+.profile-details .score-track { background:#e1e8dc; }
+.profile-details .score-fill { background:#517c56; }
+.profile-details .score-number { color:#315842;font-weight:700; }
+.detail-warnings { color:#a34a38;font-size:12px; }
+.watch-links .watch-link {
+  color:#365b43;border-color:var(--ui-line);font-size:12px;
+  padding:11px 0;
+}
+.watch-links .watch-link:hover { color:#a04c36;border-color:#d6af9d; }
+.watch-links .watch-link small { color:#748473!important;font-size:11px!important; }
+.catalog-provider-note .source-credits small { color:#647d67; }
+.catalog-provider-note .source-credits a { color:#355b43; }
+@media(max-width:760px){
+ .modal .json-preview { margin:13px 18px; }
+ .modal .json-help { margin-inline:18px; }
+}
