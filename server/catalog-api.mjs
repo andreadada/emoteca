@@ -8,7 +8,11 @@ import http from 'node:http';
 
 const TOKEN = (process.env.TMDB_READ_TOKEN || '').trim().replace(/^Bearer\s+/i, '');
 const PORT = Number(process.env.CATALOG_PORT || 8787);
-const BASE = 'https://api.themoviedb.org/3';
+// Testing-only loopback endpoint. Production always uses the official TMDB HTTPS API.
+const TEST_BASE = process.env.TMDB_TEST_BASE || '';
+const BASE = process.env.NODE_ENV === 'test' &&
+  /^http:\/\/127\.0\.0\.1:\d+\/3$/.test(TEST_BASE)
+  ? TEST_BASE : 'https://api.themoviedb.org/3';
 const TTL = 10 * 60 * 1000;
 const MAX_CACHE = 300;
 const cache = new Map();
