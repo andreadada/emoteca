@@ -542,8 +542,8 @@ await scenario('dark light selection, cinematic TMDB backdrop and Google account
   assert.ok(bg.width>=bg.viewport-2,'The TMDB backdrop must span the viewport');
   await page.waitForFunction(()=>document.querySelector('.detail-cinema-image')?.naturalWidth>0);
   const opaque=await page.evaluate(()=>getComputedStyle(document.querySelector('#detail-screen .detail-page-content')).backgroundColor);
-  assert.match(opaque,/rgba?\\(0, 0, 0, 0\\)|transparent/,
-    'Legacy opaque detail surface must not hide the cinematic background');
+  assert.ok(opaque==='rgba(0, 0, 0, 0)'||opaque==='transparent',
+    'Legacy opaque detail surface must not hide the cinematic background: '+opaque);
   assert.ok(bg.pageHeight>=650,'The backdrop must cover the entire film page');
   assert.equal(await page.locator('#detail-screen .detail-hero .detail-backdrop').count(),0,
     'Backdrop should not be a small overlay inside the old hero card');
