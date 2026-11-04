@@ -28,7 +28,7 @@ test('Existing catalog validation supports source-imported films with unknown ed
   const listeners = [];
   const document = { addEventListener: (event, handler) => listeners.push([event, handler]) };
   const storage = { getItem: () => null };
-  const context = createContext({ window, document, localStorage: storage, location: { href: 'https://example.org/' }, console });
+  const context = createContext({ window, document, localStorage: storage, location: { href: 'https://example.org/' }, URL, console });
   new Script(read('js/app.js')).runInContext(context);
   assert.ok(window.AfterframeTest);
   assert.ok(window.AfterframeCatalog);
