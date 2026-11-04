@@ -17,7 +17,7 @@
 `js/cloud.js` usa il pulsante ufficiale Google Identity Services, che restituisce un **ID token** al backend. Il backend:
 1. Controlla **CSRF double-submit e Origin** della richiesta.
 2. Verifica firma RS256 dell'ID token con le chiavi pubbliche Google (JWKS), audience `GOOGLE_CLIENT_ID`, issuer, scadenza, email verificata e `sub`. L'email **non** è la chiave primaria: si usa il `sub` di Google.
-3. Crea sessione casuale lunga 256 bit, ne memorizza solo l'hash SHA-256 in PostgreSQL; invia un cookie sessione **HttpOnly, Secure, SameSite=Lax** valido 14 giorni.
+3. Limita i tentativi di login per client e crea sessione casuale lunga 256 bit, ne memorizza solo l'hash SHA-256 in PostgreSQL; invia un cookie sessione **HttpOnly, Secure, SameSite=Lax** valido 14 giorni.
 4. Partiziona tutti i documenti per `google_sub`, individuato esclusivamente dalla sessione autenticata.
 5. Usa versioni ottimistiche su `/api/user/data`: se due dispositivi salvano la stessa revisione, il secondo riceve `409` e **non sovrascrive** il primo.
 
@@ -84,6 +84,7 @@ Il sistema **non implementa ancora merge intelligente tra due librerie non vuote
 | `/api/user/session` | GET | Profilo dell'account autenticato o null |
 | `/api/user/login` | POST | Verifica ID token e crea sessione |
 | `/api/user/logout` | POST | Revoca sessione e cancella cookie |
+| `/api/user/delete` | POST | Con conferma esplicita `ELIMINA`, elimina l'account e i dati cloud del solo utente autenticato, lasciando intatto IndexedDB locale |
 | `/api/user/data` | GET | Snapshot di film, liste, versione personale |
 | `/api/user/data` | PUT | Salva lo snapshot, solo con versione attuale e CSRF |
 
