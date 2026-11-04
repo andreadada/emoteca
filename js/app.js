@@ -43,7 +43,7 @@ function renderFeatured(){
   <p class="feature-description">${esc(f.description||'Apri la scheda per conoscere questo titolo.')}</p>
   <div class="feature-actions">
    <button class="button primary" type="button" data-open="${esc(f.id)}">Apri la scheda ${icon('arrow')}</button>
-   <button class="button quiet" type="button" data-view="watchlist">Da guardare</button>
+   <button class="button quiet" type="button" data-view="watchlist">Apri la watchlist</button>
   </div>
   <p class="feature-origin">Un titolo della tua collezione, non una pubblicità.</p>
  </div>
