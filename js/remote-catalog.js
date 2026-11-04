@@ -337,8 +337,10 @@
     updateFilterControls();
     const filtered=selectedThemes.size>0||type==='anime';
     status(query ? 'Ricerca nel catalogo…' : 'Caricamento del catalogo…');
-    $('#catalog-results-title').textContent = type==='anime' ? 'Anime da esplorare' :
-      query ? 'Risultati nel catalogo mondiale' : 'Film da esplorare';
+    $('#catalog-results-title').textContent = query ? 'Risultati della ricerca' :
+      type==='anime' ? 'Anime da esplorare' :
+      type==='tv' ? 'Serie da esplorare' :
+      type==='movie' ? 'Film da esplorare' : 'Film e serie da esplorare';
     try {
       let result;
       if (catalogMode() === 'wikidata') {
