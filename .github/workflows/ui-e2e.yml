@@ -26,7 +26,14 @@ jobs:
             curl -fsS http://127.0.0.1:8000/index.html >/dev/null && break
             sleep 1
           done
-          curl -fsS http://127.0.0.1:8000/api/catalog/status
+          for i in $(seq 1 45); do
+            if curl -fsS http://127.0.0.1:8000/api/catalog/status; then
+              exit 0
+            fi
+            sleep 1
+          done
+          docker logs emoteca-catalog-test
+          exit 1
       - name: Run browser flows and capture screenshots
         run: node tests/ui-e2e.mjs
       - name: Show Docker logs on failure
