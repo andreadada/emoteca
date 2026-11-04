@@ -12,7 +12,6 @@ const reactNames={unseen:'Non visto',cried:'Ho pianto',moved:'Mi ha commosso',no
 let films=[],view='discover',typeFilter='all',tagFilter='all',sortFilter='match',query='',editFilmId=null,detailId=null,jsonPlan=null,posterQueue=[],posterActive=false;
 const posterCache=new Map();const posterTried=new Set();
 try{const cache=JSON.parse(localStorage.getItem('afterframe-poster-cache')||'{}');Object.entries(cache).forEach(([k,v])=>{if(safeUrl(v))posterCache.set(k,v);});}catch{}
-function palette(id){const hues=[['#7765a9','#47335e','#be92de'],['#3f6988','#25465c','#8bbad0'],['#935b7c','#4a2946','#e2a0c0'],['#747452','#3e4732','#d3c08a'],['#7a506d','#44314d','#d49bb7']];return hues[Array.from(id).reduce((a,c)=>a+c.charCodeAt(0),0)%hues.length];}
 function fallback(f){return `<div class="poster-fallback"><strong>${esc(f.title)}</strong><span>${esc(f.year)}</span></div>`;}
 function posterMarkup(f,eager=false){const src=safeUrl(f.poster)||safeUrl(posterCache.get(f.id));return `${fallback(f)}${src?`<img class="poster-image" src="${esc(src)}" alt="Locandina di ${esc(f.title)}" width="320" height="480" loading="${eager?'eager':'lazy'}" fetchpriority="${eager?'high':'auto'}" decoding="async" onerror="this.remove()" />`:''}`;}
 function toast(msg,isError=false){const root=$('#toast-root'),el=document.createElement('div');el.className='toast'+(isError?' error':'');el.textContent=msg;root.append(el);setTimeout(()=>el.remove(),4000);}
