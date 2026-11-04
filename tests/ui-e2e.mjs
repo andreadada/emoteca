@@ -409,6 +409,37 @@ await scenario('personal lists migrate, create, rename and delete safely', {widt
   await page.locator('.nav-link[data-view="all"]').click();
   assert.equal((await page.evaluate(async()=>window.CatalogDB.readLists())).length,1);
 });
+
+await scenario('new global film can be saved directly to a chosen list', {width:1440,height:900}, async page=>{
+  await wikidataStub(page);
+  await page.locator('.nav-link[data-view="all"]').click();
+  await page.locator('[data-action="create-list"]').click();
+  await page.locator('#list-name-input').fill('Film con amici');
+  await page.locator('#list-form button[type="submit"]').click();
+  await page.waitForFunction(()=>document.querySelector('#section-title')?.textContent==='Film con amici');
+  const target=await page.evaluate(async()=>(await window.CatalogDB.readLists())[1].id);
+  await page.locator('.nav-link[data-view="explore"]').click();
+  await page.locator('#catalog-query').fill('Prova del catalogo');
+  await page.locator('#global-grid .card-name').first().waitFor({timeout:14000});
+  await page.locator('#global-grid .card-name').first().click();
+  await page.locator('#preview-target-list').selectOption(target);
+  await page.locator('.detail-intro [data-action="add-preview"]').click();
+  await page.waitForFunction(async id=>{
+    const lists=await window.CatalogDB.readLists();
+    return lists.some(list=>list.id===id&&list.filmIds.includes('wikidata-q123456'));
+  },target);
+  const lists=await page.evaluate(async()=>window.CatalogDB.readLists());
+  assert.equal(lists[0].filmIds.length,34,'Catalog import must not silently change default list');
+  assert.deepEqual(lists[1].filmIds,['wikidata-q123456']);
+  const rows=await page.evaluate(async()=>window.CatalogDB.read());
+  assert.equal(rows.length,35);
+  assert.equal(rows.filter(f=>f.id==='wikidata-q123456').length,1);
+  await page.locator('[data-action="back-detail"]').click();
+  await page.locator('.nav-link[data-view="all"]').click();
+  assert.equal(await page.locator('#section-title').textContent(),'Film con amici');
+  assert.equal(await page.locator('#film-grid .film-card').count(),1);
+});
+
 await scenario('mobile personal lists do not overflow', {width:390,height:844}, async page=>{
   await page.locator('.nav-link[data-view="all"]').click();
   await page.locator('[data-action="create-list"]').click();
