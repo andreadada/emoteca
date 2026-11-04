@@ -1,4 +1,6 @@
-# Emoteca — Sorgenti cinematografiche e direzione di design
+# Emoteca — Sorgenti cinematografiche e direzione di design (ricerca storica)
+
+> **Documento di ricerca pre-v3**, utile per fonti e licenze ma con descrizioni di UI/provider non più attuali (modal, Wikidata come fonte predefinita, token TMDB solo lato browser). In **v3**, TMDB è il catalogo primario tramite proxy server quando configurato, Wikidata è fallback e la ricerca è una pagina. Per lo stato reale usa [PROJECT-HANDOFF.md](PROJECT-HANDOFF.md), [CATALOG-V3.md](CATALOG-V3.md), [DEPLOY-COOLIFY.md](DEPLOY-COOLIFY.md) e il codice `main`.
 
 ## Obiettivo
 
