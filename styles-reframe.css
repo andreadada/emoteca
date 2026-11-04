@@ -737,3 +737,11 @@ a:focus-visible,summary:focus-visible {
  .modal .json-preview { margin:13px 18px; }
  .modal .json-help { margin-inline:18px; }
 }
+
+
+/* Keep horizontal filters within their own scrolling lanes, never the viewport. */
+html,body { max-width:100%;overflow-x:clip; }
+@media(max-width:760px) {
+ .type-tabs,.catalog-type-tabs,.reel-track { margin-right:0; }
+ .page-body,.collection-section,.library-toolbar,.catalog-theme-section,.catalog-filters { min-width:0; }
+}
