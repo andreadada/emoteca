@@ -443,6 +443,54 @@ await scenario('reframe mobile search, media index and detail avoid overflow',
   await page.screenshot({path:'ui-screenshots/reframe-mobile-detail.png',fullPage:true});
 });
 
+await scenario('long film IDs and malformed list records preserve the personal diary',
+  {width:1440,height:900},async page=>{
+  const longId='movie-'+ 'x'.repeat(83);
+  await page.evaluate(async id=>{
+    const films=await window.CatalogDB.read();
+    const base=films[0];
+    await window.CatalogDB.writeSnapshot([...films,{...base,id,title:'Film con ID lungo',notes:'Non cancellare questa nota',favorite:false}],
+      [{id:'mia-lista',name:'La mia lista',filmIds:[...films.map(f=>f.id),id]}]);
+  },longId);
+  await page.reload({waitUntil:'domcontentloaded'});
+  await page.locator('.nav-link[data-view="all"]').click();
+  assert.equal(await page.locator('#film-grid .film-card').count(),35);
+  assert.equal(await page.locator('#toast-root .toast.error').count(),0,
+    'A valid long film ID must not trigger a false list corruption warning');
+  const before=await page.evaluate(async id=>({
+    lists:await window.CatalogDB.readLists(),
+    film:(await window.CatalogDB.read()).find(f=>f.id===id)
+  }),longId);
+  assert.equal(before.film.notes,'Non cancellare questa nota');
+  assert.ok(before.lists[0].filmIds.includes(longId));
+
+  // Deliberately store an invalid raw list. The next film edit must never
+  // replace the raw record with the synthetic fallback list.
+  const corrupt=[{id:'orphan-list',name:'Vecchia raccolta',filmIds:[longId]}];
+  await page.evaluate(async raw=>window.CatalogDB.writeLists(raw),corrupt);
+  await page.reload({waitUntil:'domcontentloaded'});
+  await page.locator('.nav-link[data-view="all"]').click();
+  await page.locator('#toast-root .toast.error').first().waitFor();
+  assert.match(await page.locator('#toast-root .toast.error').first().textContent(),/La lista iniziale non è presente/);
+  await page.locator('#film-grid .card-favorite').first().click();
+  await page.waitForFunction(async()=>{
+    const raw=await window.CatalogDB.readLists();
+    return raw.length===1&&raw[0].id==='orphan-list';
+  });
+  const rawAfter=await page.evaluate(async()=>window.CatalogDB.readLists());
+  assert.deepEqual(rawAfter,corrupt,'A film edit must not destroy the stored invalid list record');
+  assert.equal((await page.evaluate(async()=>window.CatalogDB.read())).length,35);
+  await page.locator('[data-action="json"]').click();
+  const downloadPromise=page.waitForEvent('download');
+  await page.locator('#json-dialog [data-action="export"]').click();
+  const download=await downloadPromise;
+  const {readFile}=await import('node:fs/promises');
+  const payload=JSON.parse(await readFile(await download.path(),'utf8'));
+  assert.equal(payload.films.length,35);
+  assert.deepEqual(payload.lists,corrupt,'Backup preserves the original invalid list record verbatim');
+  assert.ok(payload.backupWarning);
+});
+
 await scenario('personal lists migrate, create, rename and delete safely', {width:1440,height:900}, async page=>{
   await page.locator('.nav-link[data-view="all"]').click();
   assert.equal(await page.locator('#section-title').textContent(),'La mia lista');
