@@ -67,6 +67,7 @@
         <div class="topbar-actions">
           <label class="searchbox"><svg><use href="#i-search"/></svg><input id="search" type="search" placeholder="Cerca nella libreria…" autocomplete="off" aria-label="Cerca film e serie"/><kbd>/</kbd></label>
           <button class="icon-btn top-db" data-action="json" title="Importa/esporta JSON" aria-label="Gestisci JSON"><svg><use href="#i-database"/></svg></button>
+          <button class="icon-btn top-add" data-action="add" title="Aggiungi un titolo manualmente" aria-label="Aggiungi un titolo manualmente"><svg><use href="#i-plus"/></svg></button>
           <button class="button primary" data-action="open-source"><svg><use href="#i-search"/></svg><span>Esplora film</span></button>
         </div>
       </header>
@@ -128,7 +129,13 @@
     <div id="source-results" class="source-results" aria-label="Risultati di ricerca"></div>
     <div class="source-bottom">
       <button class="button secondary" id="source-next" type="button" hidden>Pagina successiva</button>
-      <p>Le copertine di Wikimedia Commons hanno licenze proprie. Per TMDB valgono i <a href="https://developer.themoviedb.org/docs/faq" target="_blank" rel="noopener noreferrer">termini e i crediti richiesti</a>.</p>
+      <div class="source-credits" aria-label="Crediti delle fonti esterne">
+        <span>Le immagini Commons hanno licenze proprie.</span>
+        <a href="https://www.themoviedb.org/" target="_blank" rel="noopener noreferrer" aria-label="The Movie Database">
+          <img src="https://www.themoviedb.org/assets/2/v4/logos/v2/blue_square_2-d537fb228cf3ded904ef09b136fe3fec72548ebc1fea3fbbd1ad9e36364db38b.svg" width="28" height="28" alt="TMDB" loading="lazy" />
+        </a>
+        <small>This product uses the TMDB API but is not endorsed or certified by TMDB.</small>
+      </div>
     </div>
   </dialog>
   <dialog class="modal detail-modal" id="detail-dialog" aria-label="Dettagli titolo"><div id="detail-content"></div></dialog>
