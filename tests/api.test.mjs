@@ -8,19 +8,34 @@ import { fileURLToPath } from 'node:url';
 
 const movie = { id: 123, media_type: 'movie', title: 'La dolce vita', original_title: 'La dolce vita',
   release_date: '1960-02-05', poster_path: '/movieposter.jpg', backdrop_path: '/moviebackdrop.jpg',
-  overview: 'Un giornalista osserva la vita romana.', vote_average: 8.1, vote_count: 999 };
+  overview: 'Un giornalista osserva la vita romana.', vote_average: 8.1, vote_count: 999,
+  genre_ids:[18,27], original_language:'it',popularity:120 };
 const series = { id: 77, media_type: 'tv', name: 'Serie di prova', original_name: 'Example Series',
-  first_air_date: '2020-01-01', poster_path: '/tvposter.png', overview: 'Test della serie.' };
+  first_air_date: '2020-01-01', poster_path: '/tvposter.png', overview: 'Test della serie.',
+  original_language:'ja', genre_ids:[16,10765], popularity:95 };
 const person = { id: 456, media_type: 'person', name: 'Attore' };
+const animeMovie = { id: 232, media_type: 'movie', title:'Film anime',original_title:'Anime Feature',
+  release_date:'2001-07-01',genre_ids:[16,14],original_language:'ja',popularity:70,
+  poster_path:'/animefilm.png',overview:'Test anime movie.' };
+const fixtureRequests = [];
 const fixture = createServer((req, res) => {
   if (req.headers.authorization !== 'Bearer test-only-secret')
     return void res.writeHead(403).end('Forbidden');
-  const path = new URL(req.url, 'http://localhost').pathname;
+  const requestUrl = new URL(req.url,'http://localhost');
+  const path = requestUrl.pathname;
+  fixtureRequests.push(requestUrl);
   let body;
   if (path === '/3/search/multi' || path === '/3/trending/all/week') {
     body = { page: 1, total_pages: 4, total_results: 80, results: [movie, series, person] };
   } else if (path === '/3/search/movie') {
     body = { page:1, total_pages:1, total_results:1, results:[movie] };
+  } else if (path === '/3/discover/movie') {
+    const anime=requestUrl.searchParams.get('with_original_language')==='ja';
+    body = { page:1,total_pages:2,total_results:anime?12:14,results:anime?[animeMovie]:[movie] };
+  } else if (path === '/3/discover/tv') {
+    body = { page:1,total_pages:3,total_results:10,results:[series] };
+  } else if (path === '/3/search/tv') {
+    body = { page:1,total_pages:1,total_results:1,results:[series] };
   } else if (path === '/3/movie/123') {
     body = { ...movie, genres: [{ name:'Drammatico' }], runtime: 173 };
   } else {
@@ -84,6 +99,29 @@ test('TMDB proxy normalizes search, discovery, details and posters with a server
 
   const poster = await (await fetch(base + '/api/catalog/poster?title=La%20dolce%20vita&year=1960&type=movie')).json();
   assert.equal(poster.item?.poster,'https://image.tmdb.org/t/p/w500/movieposter.jpg');
+
+  const horror = await (await fetch(base+'/api/catalog/discover?page=1&type=movie&genres=horror')).json();
+  assert.equal(horror.items.length,1,'Film Horror comes from TMDB genre 27');
+  assert.ok(fixtureRequests.some(u=>u.pathname==='/3/discover/movie' &&
+    u.searchParams.get('with_genres')==='27'));
+  const horrorAll = await (await fetch(base+'/api/catalog/discover?page=1&type=all&genres=horror')).json();
+  assert.equal(horrorAll.items.length,1,'Do not treat unrelated TV Mystery as Horror');
+  assert.equal(horrorAll.items[0].id,'tmdb-movie-123');
+  const anime = await (await fetch(base+'/api/catalog/discover?page=1&type=anime')).json();
+  assert.deepEqual(anime.items.map(x=>x.id),['tmdb-tv-77','tmdb-movie-232']);
+  assert.ok(fixtureRequests.some(u=>u.pathname==='/3/discover/tv' &&
+    u.searchParams.get('with_original_language')==='ja' &&
+    u.searchParams.get('with_genres')==='16'));
+  const genreSearch=await (await fetch(base+'/api/catalog/search?q=all&type=all&genres=horror')).json();
+  assert.deepEqual(genreSearch.items.map(x=>x.id),['tmdb-movie-123']);
+  assert.equal(genreSearch.filteredSearch,true);
+  assert.equal(genreSearch.totalResults,null,'Do not invent filtered total search counts');
+  assert.equal(genreSearch.totalPages,4,'Keep pagination for filtered search pages');
+  const animeSearch=await (await fetch(base+'/api/catalog/search?q=Serie&type=anime')).json();
+  assert.deepEqual(animeSearch.items.map(x=>x.id),['tmdb-tv-77']);
+  assert.equal((await fetch(base+'/api/catalog/search?q=Film&genres=notreal')).status,400);
+  assert.equal((await fetch(base+'/api/catalog/discover?type=anime&genres=horror,horror')).status,400);
+  assert.equal((await fetch(base+'/api/catalog/discover?type=invalid')).status,400);
 
   assert.equal((await fetch(base + '/api/catalog/search?q=x')).status,400);
   assert.equal((await fetch(base + '/api/catalog/search?q=Film&page=999')).status,400);
