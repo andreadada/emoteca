@@ -879,6 +879,8 @@ window.AfterframeCatalog={
       id:item.id,title:item.title,year:item.year,type:item.type||'film',
       genre:item.genre||'',description:item.description||'',source:item.source||'catalogo esterno',
       sourceUrl:item.sourceUrl||'',originalTitle:item.originalTitle||'',backdrop:item.backdrop||'',
+      cast:item.cast||[],directors:item.directors||[],writers:item.writers||[],
+      trailerUrl:item.trailerUrl||'',voteAverage:item.voteAverage??null,
       why:'',tags:[],scores:{emotion:0,comedy:0,action:0,romance:0,tension:0},
       match:0,status:'watchlist',reaction:'unseen',rating:null,
       favorite:false,notes:'',poster:item.poster||'',posterQuery:item.originalTitle||item.title,
