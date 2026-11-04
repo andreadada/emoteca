@@ -105,6 +105,9 @@ await scenario('remote poster cannot cover homepage layout', { width: 1440, heig
   await page.waitForFunction(() =>
     document.querySelector('.feature-poster > .poster-image[src*="emoteca-test.png"]') !== null,
     null, { timeout: 18000 });
+  await page.waitForFunction(() =>
+    document.querySelector('#editorial-rail .poster-wrap > .poster-image[src*="emoteca-test.png"]') !== null,
+    null, { timeout: 18000 });
 
   const layout = await page.evaluate(() => {
     const hero = document.querySelector('#hero').getBoundingClientRect();
