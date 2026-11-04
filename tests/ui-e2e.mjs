@@ -372,6 +372,7 @@ await scenario('personal lists migrate, create, rename and delete safely', {widt
   await page.locator('[data-action="create-list"]').click();
   await page.locator('#list-name-input').fill('Serata horror');
   await page.locator('#list-form button[type="submit"]').click();
+  await page.waitForFunction(()=>document.querySelector('#section-title')?.textContent==='Serata horror');
   assert.equal(await page.locator('#section-title').textContent(),'Serata horror');
   assert.equal(await page.locator('#film-grid .film-card').count(),0);
   const listId=await page.evaluate(async()=>(await window.CatalogDB.readLists())[1].id);
@@ -381,6 +382,7 @@ await scenario('personal lists migrate, create, rename and delete safely', {widt
   const chip=page.locator('[data-action="toggle-list-membership"][data-list-id="'+listId+'"]');
   assert.equal(await chip.getAttribute('aria-pressed'),'false');
   await chip.click();
+  await page.waitForFunction(id=>document.querySelector('[data-action="toggle-list-membership"][data-list-id="'+id+'"]')?.getAttribute('aria-pressed')==='true',listId);
   assert.equal(await chip.getAttribute('aria-pressed'),'true');
   await page.locator('[data-action="back-detail"]').click();
   await page.locator('.nav-link[data-view="all"]').click();
@@ -388,15 +390,18 @@ await scenario('personal lists migrate, create, rename and delete safely', {widt
   assert.equal(await page.locator('#film-grid .card-name').first().getAttribute('data-open'),filmId);
   await page.screenshot({path:'ui-screenshots/desktop-personal-lists.png',fullPage:true});
   await page.locator('#film-grid [data-action="remove-from-list"]').first().click();
+  await page.waitForFunction(()=>document.querySelectorAll('#film-grid .film-card').length===0);
   assert.equal(await page.locator('#film-grid .film-card').count(),0);
   assert.equal((await page.evaluate(async()=>window.CatalogDB.read())).length,34);
   assert.equal((await page.evaluate(async()=>window.CatalogDB.readLists()))[0].filmIds.length,34);
   await page.locator('[data-action="rename-list"]').click();
   await page.locator('#list-name-input').fill('Cinema del weekend');
   await page.locator('#list-form button[type="submit"]').click();
+  await page.waitForFunction(()=>document.querySelector('#section-title')?.textContent==='Cinema del weekend');
   assert.equal(await page.locator('#section-title').textContent(),'Cinema del weekend');
   page.once('dialog',dialog=>dialog.accept());
   await page.locator('[data-action="delete-list"]').click();
+  await page.waitForFunction(()=>document.querySelectorAll('#personal-list-tabs .personal-list-tab').length===1);
   assert.equal(await page.locator('#personal-list-tabs .personal-list-tab').count(),1);
   assert.equal(await page.locator('#section-title').textContent(),'La mia lista');
   assert.equal(await page.locator('#film-grid .film-card').count(),34);
@@ -409,6 +414,7 @@ await scenario('mobile personal lists do not overflow', {width:390,height:844}, 
   await page.locator('[data-action="create-list"]').click();
   await page.locator('#list-name-input').fill('Anime da rivedere');
   await page.locator('#list-form button[type="submit"]').click();
+  await page.waitForFunction(()=>document.querySelector('#section-title')?.textContent==='Anime da rivedere');
   assert.equal(await page.locator('#section-title').textContent(),'Anime da rivedere');
   const overflow=await page.evaluate(()=>document.documentElement.scrollWidth-window.innerWidth);
   assert.ok(overflow<=1,'Personal list navigation overflow '+overflow+'px');
