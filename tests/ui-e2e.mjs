@@ -149,6 +149,84 @@ await scenario('global search fallback, save and open new film', { width: 1440, 
   assert.match(await page.locator('.detail-intro h2').textContent(), /Prova del catalogo globale/);
 });
 
+await scenario('preloaded films are catalog entries without duplicate library rows', { width: 1440, height: 900 }, async page => {
+  const codeGeass={
+    id:'tmdb-tv-32123',provider:'tmdb',source:'TMDB',sourceId:'32123',media:'tv',
+    type:'serie',title:'Code Geass: Lelouch of the Rebellion',
+    originalTitle:'Code Geass: Lelouch of the Rebellion',year:2006,
+    poster:'https://image.tmdb.org/t/p/w500/code.jpg',
+    backdrop:'',description:'Testo del catalogo ufficiale',genre:'Animazione',
+    sourceUrl:'https://www.themoviedb.org/tv/32123'
+  };
+  const yourName={id:'tmdb-movie-372058',provider:'tmdb',source:'TMDB',sourceId:'372058',
+    media:'movie',type:'film',title:'Your Name',originalTitle:'Your Name',
+    year:2016,poster:'',description:'Trama dal catalogo',sourceUrl:'https://www.themoviedb.org/movie/372058'};
+  const residentEvil={id:'tmdb-movie-1423191',provider:'tmdb',source:'TMDB',sourceId:'1423191',
+    media:'movie',type:'film',title:'Resident Evil',originalTitle:'Resident Evil',
+    year:2026,poster:'',description:'Film non presente nella libreria',
+    sourceUrl:'https://www.themoviedb.org/movie/1423191'};
+  await page.route('**/api/catalog/status', route => route.fulfill({
+    status:200, contentType:'application/json',
+    body:JSON.stringify({provider:'tmdb',enabled:true})
+  }));
+  await page.route('**/api/catalog/search?**', route => {
+    const q=new URL(route.request().url()).searchParams.get('q')||'';
+    return route.fulfill({status:200,contentType:'application/json',
+      body:JSON.stringify({source:'TMDB',items:/geass/i.test(q)?[codeGeass]:[],
+        page:1,totalPages:1,totalResults:/geass/i.test(q)?1:0})});
+  });
+  await page.route('**/api/catalog/discover?**', route => route.fulfill({
+    status:200,contentType:'application/json',
+    body:JSON.stringify({source:'TMDB',items:[codeGeass,yourName,residentEvil],
+      page:1,totalPages:1,totalResults:3})
+  }));
+  await page.route('**/api/catalog/detail?**', route => route.fulfill({
+    status:200,contentType:'application/json',
+    body:JSON.stringify({source:'TMDB',item:codeGeass})
+  }));
+  await page.route('**/api/catalog/poster?**', route => route.fulfill({
+    status:200,contentType:'application/json',body:JSON.stringify({item:null})
+  }));
+  await page.reload({waitUntil:'domcontentloaded'});
+  await page.locator('.nav-link[data-view="explore"]').click();
+  await page.locator('#global-grid .global-film').first().waitFor();
+
+  const savedLabels=await page.locator('#global-grid .film-flag').allTextContents();
+  assert.ok(savedLabels.some(x=>x.includes('Da guardare')), 'Code Geass preloaded should already be saved');
+  assert.ok(savedLabels.some(x=>x.includes('Già visto')), 'Your Name preloaded should already be watched');
+  assert.equal(await page.locator('#global-grid .global-save:disabled').count(),2,
+    'Only the two personal-library titles must be considered saved');
+  await page.locator('#global-grid .card-name').first().click();
+  assert.equal(await page.locator('#detail-screen').isVisible(),true);
+  assert.match(page.url(),/film=code-geass-2006/);
+  assert.ok(await page.locator('#personal-notes').isVisible(), 'Preloaded film must have its diary, not Add button');
+  await page.locator('#personal-notes').fill('Nota salvata prima del collegamento.');
+  await page.locator('#detail-screen [data-action="save-personal"]').click();
+
+  await page.waitForFunction(async () => {
+    const row=(await window.CatalogDB.read()).find(x=>x.id==='code-geass-2006');
+    return row?.catalogId==='tmdb-tv-32123';
+  },null,{timeout:20000});
+  const saved=await page.evaluate(async ()=>{
+    const data=await window.CatalogDB.read();
+    const film=data.find(x=>x.id==='code-geass-2006');
+    return {length:data.length,id:film.id,catalogId:film.catalogId,
+      description:film.description,notes:film.notes,status:film.status};
+  });
+  assert.equal(saved.length,34,'Linking must never duplicate the initial movie');
+  assert.equal(saved.id,'code-geass-2006','Preserve stable local URLs');
+  assert.equal(saved.catalogId,'tmdb-tv-32123');
+  assert.equal(saved.description,'Testo del catalogo ufficiale');
+  assert.equal(saved.notes,'Nota salvata prima del collegamento.');
+  assert.equal(saved.status,'watchlist');
+  await page.locator('[data-action="back-detail"]').click();
+  await page.locator('.nav-link[data-view="explore"]').click();
+  await page.locator('#global-grid .global-film').last().locator('.card-name').click();
+  assert.ok(await page.locator('.detail-intro [data-action="add-preview"]').isVisible(),
+    'Resident Evil is not part of the seeded library');
+  await page.screenshot({path:'ui-screenshots/global-and-seed-linked.png',fullPage:true});
+});
+
 await scenario('mobile navigation, catalog and full film page', { width: 390, height: 844 }, async page => {
   await wikidataStub(page);
   assert.equal(await page.locator('.site-nav').isVisible(), true);
