@@ -574,8 +574,8 @@ async function init(){
 }
 document.addEventListener('DOMContentLoaded',init);
 window.AfterframeCatalog={
-  isSaved:raw=>Boolean(films.find(f=>f.id===raw.id||(
-    normal(f.title)===normal(raw.title)&&f.year===raw.year&&f.type===raw.type))),
+  findSaved:raw=>window.EmotecaIdentity.findSaved(films,raw),
+  isSaved:raw=>Boolean(window.EmotecaIdentity.findSaved(films,raw)),
   localMatches:term=>{
     const q=normal(term).trim();
     if(q.length<2)return '';
@@ -584,9 +584,18 @@ window.AfterframeCatalog={
   },
   openExplore:term=>openExplore(String(term||'')),
   openExternal:async (item,push=true)=>{
-    const existing=films.find(f=>f.id===item.id||(
-      normal(f.title)===normal(item.title)&&f.year===item.year&&f.type===item.type));
-    if(existing){remoteSelection=null;showDetail(existing.id,push);return;}
+    const existing=window.EmotecaIdentity.findSaved(films,item);
+    if(existing){
+      remoteSelection=null;
+      // Associate the canonical catalog entry with the preloaded local film,
+      // but preserve its ID and personal diary.
+      if(item.provider==='tmdb' && !existing.catalogId){
+        await attachCatalogRecord(existing.id,item,
+          (window.SEED_FILMS||[]).find(seed=>seed.id===existing.id));
+      }
+      showDetail(existing.id,push);
+      return;
+    }
     remoteSelection={
       id:item.id,title:item.title,year:item.year,type:item.type||'film',
       genre:item.genre||'',description:item.description||'',source:item.source||'catalogo esterno',
@@ -608,10 +617,24 @@ window.AfterframeCatalog={
   },
   addExternal:async raw=>{
     const film=validateFilm(raw);
-    const existing=films.find(x=>x.id===film.id||
-      (normal(x.title)===normal(film.title)&&x.year===film.year&&x.type===film.type));
-    if(existing)return {added:false,id:existing.id};
-    await store([film,...films],'Titolo aggiunto alla tua libreria.');
+    const existing=window.EmotecaIdentity.findSaved(films,film);
+    if(existing){
+      if(film.catalogId?.startsWith('tmdb-') && !existing.catalogId){
+        const remote={
+          id:film.catalogId,provider:'tmdb',title:film.catalogTitle||film.title,
+          year:film.year,type:film.type,poster:film.poster,backdrop:film.backdrop,
+          description:film.description,genre:film.genre,duration:film.duration,
+          sourceUrl:film.links?.find(link=>link.url?.startsWith('https://www.themoviedb.org/'))?.url||''
+        };
+        await attachCatalogRecord(existing.id,remote,
+          (window.SEED_FILMS||[]).find(seed=>seed.id===existing.id));
+      }
+      return {added:false,id:existing.id};
+    }
+    await store(current=>{
+      if(window.EmotecaIdentity.findSaved(current,film))return current;
+      return [film,...current];
+    },'Titolo aggiunto alla tua libreria.');
     return {added:true,id:film.id};
   }
 };
