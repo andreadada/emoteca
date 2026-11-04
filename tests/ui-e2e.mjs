@@ -480,7 +480,7 @@ await scenario('long film IDs and malformed list records preserve the personal d
   const rawAfter=await page.evaluate(async()=>window.CatalogDB.readLists());
   assert.deepEqual(rawAfter,corrupt,'A film edit must not destroy the stored invalid list record');
   assert.equal((await page.evaluate(async()=>window.CatalogDB.read())).length,35);
-  await page.locator('[data-action="json"]').click();
+  await page.locator('.header-tools [data-action="json"]').click();
   const downloadPromise=page.waitForEvent('download');
   await page.locator('#json-dialog [data-action="export"]').click();
   const download=await downloadPromise;
