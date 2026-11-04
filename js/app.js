@@ -352,7 +352,7 @@ function onClick(e){const clos=e.target.closest('[data-close]');if(clos){closeDi
  switch(action.dataset.action){case'add':openEdit();break;
  case'hero-detail':{const f=featuredFilm();if(f)showDetail(f.id);break;}
  case'json':openJson();break;
- case'back-detail':setView(detailBackView==='explore'?'explore':detailBackView);break;
+ case'back-detail':{if(detailBackView==='explore')openExplore(window.EmotecaExplorer?.currentQuery?.()||'');else setView(detailBackView);break;}
  case'add-preview':{
    if(!remoteSelection || !window.EmotecaExplorer)return;
    let raw;
