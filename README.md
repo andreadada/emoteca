@@ -1,6 +1,19 @@
-# AFTERFRAME — La tua cineteca emotiva
+# Emoteca — La tua libreria cinematografica
 
-Una libreria web personalizzata (HTML, CSS, JavaScript puro), con **34 titoli iniziali**, valutazioni e reazioni già note, ricerca e filtri, link di ricerca streaming, copertine, gestione personale e database locale con import/export JSON.
+Una libreria cinematografica personale in HTML, CSS e JavaScript puro. Parte da **34 titoli iniziali**, mantiene valutazioni, preferiti, note e filtri nel browser, e ora permette di **cercare nuovi film da Wikidata o TMDB** e aggiungerli selettivamente alla raccolta.
+
+## Novità — Esplora il catalogo cinematografico
+
+**Esplora film** nella barra superiore o nella navigazione apre la ricerca tra archivi esterni.
+
+- **Wikidata** è la fonte predefinita: metadati strutturati con licenza CC0, nessuna chiave API necessaria. La ricerca è online, non un download di tutte le opere esistenti.
+- **TMDB** è facoltativo: richiede un **API Read Access Token (Bearer)** personale e offre poster e sinossi più ricchi. Il token è usato esclusivamente in memoria nella pagina e non viene registrato, salvato nel database o inserito nel codice. L'uso gratuito richiede finalità non commerciali e attribuzione; per scopi commerciali occorre una licenza.
+- Per ogni risultato sono mostrati titolo, anno (quando presente), descrizione, poster disponibile, link alla fonte e **Aggiungi**. Se manca l'anno non vengono inventati metadati e l'importazione automatica è disabilitata.
+- I film importati sono salvati nella **biblioteca locale**, non sostituiscono i titoli esistenti e non ricevono percentuali di affinità fittizie. Titoli già presenti non vengono duplicati.
+- I poster da Wikimedia Commons sono soggetti alle **licenze individuali** dei file, distinte dalla licenza CC0 sui dati strutturati.
+- Non viene verificata la disponibilità dei film sulle piattaforme streaming.
+
+Per la valutazione approfondita delle fonti, i limiti dei cataloghi e il nuovo design system vedi [Sorgenti catalogo e design](docs/CATALOG-SOURCES-AND-DESIGN.md).
 
 ## Avvio rapido
 
@@ -9,17 +22,17 @@ Una libreria web personalizzata (HTML, CSS, JavaScript puro), con **34 titoli in
    - Windows: doppio clic su `avvia-windows.bat` (serve Python installato).
    - Mac/Linux: `./avvia-mac-linux.sh`.
    - Manuale: nella cartella, esegui `python -m http.server 8000`, poi visita `http://localhost:8000`.
-3. Nessuna libreria JS esterna né chiave API richiesta. Funziona anche senza backend.
+3. Nessuna libreria JS esterna né chiave richiesta per la libreria personale e Wikidata. La ricerca esterna richiede rete; TMDB richiede un token personale.
 
 ## Funzionalità
 
-- **Catalogo iniziale personalizzato**: raccomandazioni da quanto hai raccontato (fratellanza, tradimenti, sacrifici, perdono, riconoscimento) e titoli già visti con la reazione indicata.
+- **Catalogo iniziale personalizzato**: 34 titoli precompilati, a cui aggiungere film e serie dagli archivi esterni o manualmente.
 - **Cover**: URL immagini impostati su alcune schede; per altre il browser cerca immagini pubbliche tramite Jikan (anime), TVmaze (serie) e, dove applicabile, iTunes Search (film). Ricerca asincrona, senza chiavi. Se un sito esterno è irraggiungibile o blocca la richiesta, viene mostrata una copertina tipografica, **non una foto inventata**. Le copertine necessitano di Internet e appartengono ai rispettivi proprietari. Se vuoi garantire una copertina precisa, inserisci manualmente il relativo URL HTTPS dalla modifica della scheda o dal JSON. I browser possono bloccare richieste cross-origin o immagini remote: è previsto un fallback. Alcuni endpoint hanno limiti di richieste.
 - **Ricerca** per titolo, genere, trama, anno e tag, filtri per tipo di opera e temi, ordinamento.
 - **Stati**: da guardare, in corso, visto; filtraggio automatico delle raccomandazioni già viste.
 - **Preferiti** con pulsante dedicato; **reazione personale** (non visto / ho pianto / mi ha commosso / non mi ha colpito).
 - **Voto personale** 1–10 e **note private** (che possono contenere spoiler). Le schede pubbliche iniziali non spoilerano.
-- **Profilo emotivo editoriale** 0–5: emozione, commedia, azione, romanticismo, tensione. Il valore `match` 0–100 è una **stima editoriale di affinità**, non un rating esterno né una previsione scientifica.
+- **Profilo editoriale opzionale** 0–5: emozione, commedia, azione, romanticismo, tensione. Il campo storico `match` 0–100 è mantenuto per compatibilità, ma non compare come valutazione inventata nelle schede dei titoli importati.
 - **Dove cercare**: link a ricerca su JustWatch Italia, Prime Video, Netflix e, per gli anime, Crunchyroll. Sono pulsanti di **ricerca**, non affermazioni sulla disponibilità; verificare sempre sul sito e nella propria area. È possibile impostare collegamenti personalizzati per ciascun titolo nel JSON.
 - **CRUD completo** (aggiungi/modifica/elimina dalla UI) e **import JSON con anteprima prima dell'applicazione**; esportazione di backup JSON, recupero del catalogo iniziale.
 - **Responsive**: desktop/tablet/mobile, supporto tastiera, schermate modali.
@@ -107,19 +120,30 @@ Sono forniti due esempi: `examples/aggiorna-un-titolo.json` e `examples/operazio
 
 Incluso `Dockerfile` con Nginx e `.dockerignore`. Carica la cartella in una repository Git e su Coolify crea una **Application** con build Dockerfile. È un sito statico senza endpoint API: conserva ancora i dati **nel browser del visitatore**, non sul server. Se passi da localhost a dominio, importa il backup JSON per migrare il tuo catalogo.
 
+## Verifiche automatiche
+
+È disponibile una suite di test senza dipendenze esterne, eseguibile con Node.js 22+:
+
+```bash
+node --test tests/*.test.mjs
+```
+
+La pipeline GitHub Actions `.github/workflows/smoke.yml` verifica la sintassi JS, i collegamenti ai file, la validazione del formato dei titoli importati, il comportamento senza token nel repository e la compatibilità del database locale.
+
 ## Organizzazione
 
 - `index.html` — interfaccia e modali
-- `styles.css` — design system responsive dark
+- `styles.css` — foglio storico; `styles-premium.css` — nuovo design system cinematografico responsive
 - `js/data.js` — catalogo iniziale, con affinità e temi
 - `js/db.js` — salvataggio IndexedDB/localStorage
-- `js/app.js` — visualizzazione, filtri, rating, ricerca poster, operazioni JSON
+- `js/app.js` — visualizzazione, filtri, rating, ricerca poster, operazioni JSON e bridge per i titoli esterni
+- `js/remote-catalog.js` — ricerca Wikidata / TMDB, preview, importazione selettiva
 - `examples/*.json` — esempi di import
 - `database/catalogo-iniziale.json` — catalogo iniziale esportabile/modificabile
-- `schema/afterframe-import.schema.json` — schema di riferimento per importazioni
+- `schema/afterframe-import.schema.json` — schema storico compatibile per importazioni
+- `docs/CATALOG-SOURCES-AND-DESIGN.md` — fonti, licenze, limiti e design system
+- `tests/smoke.test.mjs` — test JavaScript senza dipendenze
 
 ## Note su streaming e contenuti
 
 JustWatch è il primo punto di controllo della disponibilità legale in Italia. I pulsanti di Prime Video, Netflix e Crunchyroll sono **ricerche**: non indicano che il titolo sia effettivamente incluso in un abbonamento. I contenuti, i poster e i marchi appartengono ai rispettivi titolari. I metadati sono catalogati per uso personale. L'import di URL esterni non equivale a verifica della fonte.
-#   e m o t e c a  
- 
