@@ -246,7 +246,7 @@ async function applyImport(){try{if(!jsonPlan||jsonPlan.raw!==$('#json-input').v
  }catch(e){toast(e.message,true);}}
 function tryCachedPoster(f){return safeUrl(f.poster)||safeUrl(posterCache.get(f.id));}
 let observer=null;
-function observePosters(){if(observer){observer.disconnect();observer=null;}const nodes=$('[data-open] .poster-fallback, [data-poster] .poster-fallback');
+function observePosters(){if(observer){observer.disconnect();observer=null;}const nodes=$$('[data-open] .poster-fallback, [data-poster] .poster-fallback');
  const fresh=nodes.filter(el=>{const f=films.find(x=>x.id===el.parentElement.dataset.open||x.id===el.parentElement.dataset.poster);return f&&!tryCachedPoster(f)&&!posterTried.has(f.id);});
  if(!('IntersectionObserver' in window)){fresh.slice(0,15).forEach(el=>queuePoster(el.parentElement.dataset.open||el.parentElement.dataset.poster));return;}
  observer=new IntersectionObserver(entries=>{for(const entry of entries){if(!entry.isIntersecting)continue;const n=entry.target.parentElement, id=n.dataset.open||n.dataset.poster;queuePoster(id);observer.unobserve(entry.target);}}, {rootMargin:'300px'});fresh.forEach(el=>observer.observe(el));}
