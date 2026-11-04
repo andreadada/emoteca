@@ -304,6 +304,14 @@
     query = String(value || '').trim().slice(0, 120);
     $('#catalog-query').value = query;
     displayLocal(query);
+    if (!$('#explore-page').hidden && !new URL(location.href).searchParams.has('film')) {
+      const url = new URL(location.href);
+      url.hash = '';
+      url.search = '';
+      url.searchParams.set('view', 'explore');
+      if (query.length >= 2) url.searchParams.set('q', query);
+      history.replaceState({ view: 'explore' }, '', url.pathname + url.search);
+    }
     if (debouncer) clearTimeout(debouncer);
     if (!query) { refresh(); return; }
     if (query.length < 2) { status('Inserisci almeno due caratteri.');return; }
@@ -391,5 +399,5 @@
     $('#search').value = event.target.value;
     search(event.target.value);
   });
-  window.EmotecaExplorer = { init, search, refresh, detail, posterFor, toLocalFilm, isEnabled: () => catalogMode() !== 'wikidata' };
+  window.EmotecaExplorer = { init, search, refresh, detail, posterFor, toLocalFilm, currentQuery: () => query, isEnabled: () => catalogMode() !== 'wikidata' };
 })();
