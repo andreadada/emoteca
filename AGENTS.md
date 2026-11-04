@@ -6,7 +6,8 @@
 2. [docs/DEPLOY-COOLIFY.md](docs/DEPLOY-COOLIFY.md) — pubblicazione e diagnostica Coolify.
 3. [docs/CATALOG-V3.md](docs/CATALOG-V3.md) — provider, API e vincoli delle licenze.
 4. [docs/PERSONAL-LISTS.md](docs/PERSONAL-LISTS.md) — liste personali multiple, migrazione e backup.
-5. `README.md` e **codice attuale del branch `main`**.
+5. [docs/DESIGN-REFRAME-2026.md](docs/DESIGN-REFRAME-2026.md) — linguaggio UI/UX aggiornato, pattern film-first, motion e verifiche.
+6. `README.md` e **codice attuale del branch `main`**.
 
 ## Invarianti da preservare
 
@@ -16,7 +17,7 @@
 - Il token TMDB vive in una variabile di ambiente **runtime** `TMDB_READ_TOKEN` dentro Coolify. Non esporlo in codice frontend, log, documentazione, screenshot o test.
 - Non promettere “tutti i film” o “tutte le locandine”: TMDB e Wikidata hanno limiti di copertura/licenze. Test API attuali usano **mock**, non confermano accesso live TMDB.
 - La scheda film è una pagina `?film=...`, non un dialog. La homepage consiglia solo titoli personali non visti.
-- Mantenere l'UI cinema-first; evitare ritorno alla sidebar, quattro statistiche decorative, marketing generico o percentuali di affinità fittizie.
+- Mantenere il linguaggio UX **Emoteca / Reframe 01** (`styles-reframe.css` sopra `styles-cinema.css`): locandine come contenuto, ricerca prioritaria, superfici chiare, navigazione e liste semplici, niente dashboard decorative, glassmorphism o effetti non funzionali. Le animazioni rispettano `prefers-reduced-motion`.
 
 ## Regole di sviluppo
 
