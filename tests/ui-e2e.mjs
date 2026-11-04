@@ -53,7 +53,7 @@ await scenario('desktop feature + collection flows', { width: 1440, height: 900 
   await page.locator('#source-dialog [data-close="source-dialog"]').click();
   await page.locator('[data-action="add"].tool-icon').click();
   assert.equal(await page.locator('#edit-dialog').evaluate((dialog) => dialog.open), true);
-  await page.locator('#edit-dialog [data-close="edit-dialog"]').click();
+  await page.locator('#edit-dialog [data-close="edit-dialog"]').first().click();
 });
 
 await scenario('mobile navigation and readability', { width: 390, height: 844 }, async (page) => {
