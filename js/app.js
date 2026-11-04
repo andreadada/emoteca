@@ -10,6 +10,8 @@ const scoreNames={emotion:'Emozione',comedy:'Commedia',action:'Azione',romance:'
 const statusNames={watchlist:'Da guardare',watching:'In corso',watched:'Già visto'};
 const reactNames={unseen:'Non visto',cried:'Ho pianto',moved:'Mi ha commosso',nothing:'Non mi ha colpito'};
 let films=[],view='discover',typeFilter='all',tagFilter='all',sortFilter='match',query='',editFilmId=null,detailId=null,jsonPlan=null,posterQueue=[],posterActive=false;
+let featuredId=null, remoteSelection=null, detailBackView='discover';
+const posterFailed=new Set();
 const posterCache=new Map();const posterTried=new Set();
 try{const cache=JSON.parse(localStorage.getItem('afterframe-poster-cache')||'{}');Object.entries(cache).forEach(([k,v])=>{if(safeUrl(v))posterCache.set(k,v);});}catch{}
 function fallback(f){return `<div class="poster-fallback"><strong>${esc(f.title)}</strong><span>${esc(f.year)}</span></div>`;}
@@ -23,14 +25,25 @@ function currentFilms(){let arr=films.filter(f=>query?true:view==='discover'?f.s
  return arr;}
 const titles={
  discover:['La tua selezione','Le storie che hai scelto di tenere a portata di mano.'],
+ explore:['Tutti i film','Cerca film e serie nei cataloghi internazionali.'],
  all:['La libreria','Tutti i titoli del tuo archivio personale.'],
  watchlist:['Da guardare','Film e serie ancora da vedere.'],
  watched:['Già visti','Le visioni che hai registrato.'],
  favorites:['I preferiti','I titoli a cui vuoi tornare.']
 };
-const viewLabels={discover:'In evidenza',all:'Libreria',watchlist:'Da guardare',watched:'Visti',favorites:'Preferiti'};
+const viewLabels={discover:'In evidenza',explore:'Tutti i film',all:'Libreria',watchlist:'Da guardare',watched:'Visti',favorites:'Preferiti'};
 function featuredFilm(){
- return films.find(f=>f.featured&&f.status!=='watched')||films.find(f=>f.status!=='watched')||films[0]||null;
+ const candidates=films.filter(f=>f.status!=='watched'&&f.reaction==='unseen');
+ if(!candidates.length){featuredId=null;return null;}
+ const current=candidates.find(f=>f.id===featuredId);
+ if(current)return current;
+ let previous='';
+ try{previous=sessionStorage.getItem('emoteca-featured-last')||'';}catch{}
+ const pool=candidates.filter(f=>f.id!==previous);
+ const choice=(pool.length?pool:candidates)[Math.floor(Math.random()*(pool.length||candidates.length))];
+ featuredId=choice.id;
+ try{sessionStorage.setItem('emoteca-featured-last',choice.id);}catch{}
+ return choice;
 }
 function renderFeatured(){
  const f=featuredFilm(),hero=$('#hero');
@@ -53,7 +66,7 @@ function renderFeatured(){
 function renderRail(){
  const rail=$('#editorial-rail');
  const featured=featuredFilm();
- const candidates=films.filter(f=>f.status!=='watched'&&f.id!==featured?.id).slice().sort((a,b)=>b.match-a.match);
+ const candidates=films.filter(f=>f.status!=='watched'&&f.reaction==='unseen'&&f.id!==featured?.id).slice().sort((a,b)=>b.match-a.match);
  const picks=candidates.slice(0,7);
  rail.innerHTML=picks.map(f=>card(f)).join('');
  $('#reel-section').hidden=view!=='discover'||!!query||picks.length===0;
@@ -74,6 +87,11 @@ function render(){
   else button.removeAttribute('aria-current');
  });
  $('#page-title').textContent='Emoteca — '+viewLabels[view];
+ const isBrowse=view==='explore';
+ document.querySelector('.page-body').hidden=isBrowse;
+ $('#explore-page').hidden=!isBrowse;
+ $('#detail-screen').hidden=true;
+ if(isBrowse)return;
  $('#current-view-name').textContent=query?'Risultati di ricerca':'La tua collezione';
  $('#section-title').textContent=query?'Risultati per “'+query+'”':titles[view][0];
  $('#section-caption').textContent=query?'Cerca fra tutti i titoli che hai salvato.':titles[view][1];
@@ -110,13 +128,33 @@ function card(f){
 function refreshTagOptions(){const select=$('#tag-filter'),all=[...new Set(films.flatMap(f=>f.tags.map(normal)))].sort((a,b)=>a.localeCompare(b,'it'));let html='<option value="all">Tutti i temi</option>';for(const tag of all)html+=`<option value="${esc(tag)}">${esc(tag.charAt(0).toUpperCase()+tag.slice(1))}</option>`;select.innerHTML=html;select.value=tagFilter;if(select.value!==tagFilter){tagFilter='all';select.value='all';}}
 function setView(v,updateHistory=true){
  if(!Object.hasOwn(titles,v))return;
+ if(v==='explore'){openExplore('',updateHistory);return;}
+ if(view!==v&&v==='discover')featuredId=null;
  view=v;typeFilter='all';tagFilter='all';query='';
  $('#search').value='';
  $('#tag-filter').value='all';
  $('#sort-filter').value='match';sortFilter='match';
- if(updateHistory&&window.history)window.history.pushState({view:v},'',v==='discover'?location.pathname:('#'+v));
+ if(updateHistory)history.pushState({view:v},'',v==='discover'?location.pathname:('#'+v));
  render();
  window.scrollTo({top:0,behavior:window.matchMedia('(prefers-reduced-motion: reduce)').matches?'auto':'smooth'});
+}
+async function openExplore(term='',updateHistory=true){
+ const first=view!=='explore';
+ view='explore';query='';
+ $('#search').value=term;
+ $('#catalog-query').value=term;
+ if(updateHistory){
+  const url=new URL(location.href);
+  url.search='';
+  url.hash='';
+  url.searchParams.set('view','explore');
+  if(term)url.searchParams.set('q',term);
+  history.pushState({view:'explore'},'',url.pathname+url.search);
+ }
+ render();
+ await window.EmotecaExplorer?.init?.();
+ window.EmotecaExplorer?.search?.(term);
+ if(first)window.scrollTo({top:0,behavior:'auto'});
 }
 async function store(next,notify){await CatalogDB.write(next);films=next;render();if(notify)toast(notify);}
 async function changeFilm(id,change){const next=films.map(f=>f.id===id?{...f,...change,updatedAt:new Date().toISOString()}:f);await store(next);}
