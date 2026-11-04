@@ -303,12 +303,31 @@ test('Personal lists keep existing films and their diaries without duplication',
   assert.throws(()=>m.normalize([{id:'lista-test',name:'Orfana',filmIds:[]}],films),/iniziale/);
   const restored=m.normalize(m.initial(films),films);
   assert.deepEqual([...restored[0].filmIds],films.map(f=>f.id));
+  const longFilmId='movie-'+ 'a'.repeat(83); // 89 characters, valid in validateFilm().
+  const longFilm=[...films,{id:longFilmId,title:'Titolo lungo',status:'watchlist'}];
+  const migrated=m.normalize([{id:'mia-lista',name:'La mia lista',filmIds:[longFilmId]}],longFilm);
+  assert.deepEqual([...migrated[0].filmIds],[longFilmId],
+    'List film IDs must support the same 90-character maximum as the film schema');
+  assert.throws(()=>m.normalize([{id:'x'.repeat(65),name:'Lista',filmIds:[]},
+    {id:'mia-lista',name:'Principale',filmIds:[]}],films),/Identificativo/);
   const snapshot=read('js/db.js');
   assert.ok(snapshot.includes('writeSnapshot'));
   assert.ok(snapshot.includes("LIST_KEY='personal-lists-v1'"));
   assert.ok(snapshot.includes("tx.objectStore('state').put(films,KEY)"));
   assert.ok(snapshot.includes("tx.objectStore('state').put(lists,LIST_KEY)"));
 });
+test('Unhealthy lists never trigger a destructive overwrite from an ordinary film save', () => {
+  const app=read('js/app.js');
+  assert.ok(app.includes('let listStorageError=null'));
+  assert.ok(app.includes('if(listStorageError){')&&app.includes('await CatalogDB.write(next)'),
+    'A film edit must write only films while the persisted list record is unreadable');
+  assert.ok(app.includes("if(listStorageError)throw Error("),
+    'List management must be read-only until the underlying record is checked');
+  assert.ok(app.includes("const storedLists=await CatalogDB.readLists()"),
+    'Backup should contain the actual stored lists, not synthetic fallback');
+  assert.ok(app.includes("console.warn('Emoteca: impossibile leggere o convalidare"));
+});
+
 test('Personal collections UI supports multiple lists, backup and list management', () => {
   const html=read('index.html'),app=read('js/app.js'),css=read('styles-cinema.css');
   for(const id of ['personal-lists','personal-list-tabs','list-dialog','list-form','list-name-input','personal-list-management']) {
