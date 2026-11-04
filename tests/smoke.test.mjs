@@ -2,6 +2,8 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync, existsSync } from 'node:fs';
 import { Script, createContext } from 'node:vm';
+import { execFileSync } from 'node:child_process';
+import { fileURLToPath } from 'node:url';
 
 const read = (file) => readFileSync(new URL('../' + file, import.meta.url), 'utf8');
 
@@ -17,14 +19,29 @@ test('App loads the explorer and cinematic stylesheet after core assets', () => 
     assert.ok(existsSync(new URL('../' + file, import.meta.url)), 'Missing ' + file);
     assert.ok(html.includes(file), 'HTML does not include ' + file);
   }
-  for (const id of ['source-dialog', 'source-form', 'source-query', 'source-results', 'source-feedback', 'source-next', 'source-submit', 'source-token', 'source-token-wrap']) {
-    assert.ok(html.includes('id="' + id + '"'), 'Missing source control ' + id);
+  for (const id of ['explore-page', 'global-grid', 'catalog-query', 'catalog-search-form', 'catalog-token',
+    'catalog-setup', 'global-next', 'local-matches', 'detail-screen', 'detail-content', 'film-page-title']) {
+    assert.ok(html.includes('id="' + id + '"'), 'Missing new catalog control ' + id);
   }
   assert.ok(html.indexOf('js/app.js') < html.indexOf('js/remote-catalog.js'));
   assert.ok(html.includes('data-action="add"'), 'Manual entry must remain accessible');
   assert.ok(html.includes('This product uses the TMDB API but is not endorsed or certified by TMDB.'));
   assert.ok(html.includes('blue_square_2-'), 'TMDB attribution must contain approved logo');
+  assert.ok(!html.includes('id="detail-dialog"'), 'Movie details must be a separate page');
+  assert.ok(!html.includes('id="source-dialog"'), 'Global search must not be a modal');
 
+});
+
+test('Secure catalog API parses as ES module', () => {
+  const file = fileURLToPath(new URL('../server/catalog-api.mjs', import.meta.url));
+  assert.doesNotThrow(() => execFileSync(process.execPath, ['--check', file]));
+  const api = read('server/catalog-api.mjs');
+  assert.ok(api.includes('process.env.TMDB_READ_TOKEN'));
+  assert.ok(!api.includes('localStorage'));
+  assert.ok(api.includes('/api/catalog/search'));
+  assert.ok(api.includes('/api/catalog/discover'));
+  assert.ok(api.includes('/api/catalog/detail'));
+  assert.ok(api.includes('/api/catalog/poster'));
 });
 
 test('Semantic architecture replaces the old dashboard UI', () => {
@@ -42,8 +59,10 @@ test('Semantic architecture replaces the old dashboard UI', () => {
   assert.ok(!html.includes('styles-premium.css'), 'Old override CSS must no longer be loaded');
   assert.ok(app.includes('function renderFeatured()'), 'Featured movie is data-driven');
   assert.ok(app.includes('function renderRail()'), 'Curated reel is data-driven');
+  assert.ok(app.includes('sessionStorage.getItem'), 'Recommendation should vary per visit');
   assert.ok(app.includes('class="film-cover"'), 'New card architecture is in the renderer');
   assert.ok(app.includes('class="detail-hero"'), 'Detail view must have its own hierarchy');
+  assert.ok(app.includes('detail-screen'), 'Film detail page must be routed');
   assert.ok(app.includes('aria-pressed'), 'Interactive filters and favorites announce selection');
   assert.ok(css.includes('@media(prefers-reduced-motion:reduce)'));
   assert.ok(css.includes('max-width:470px'));
@@ -55,11 +74,12 @@ test('Accessibility-sensitive controls remain available in the redesigned shell'
   const html = read('index.html');
   assert.ok(html.includes('class="skip-link"'));
   assert.ok(html.includes('id="search"'));
-  assert.ok(html.includes('data-action="open-source"'));
+  assert.ok(html.includes('data-view="explore"'));
+  assert.ok(html.includes('id="catalog-query"'));
   assert.ok(html.includes('data-action="json"'));
   assert.ok(html.includes('data-action="add"'));
   assert.ok(html.includes('aria-label="Navigazione principale"'));
-  for (const view of ['discover', 'all', 'watchlist', 'watched', 'favorites']) {
+  for (const view of ['discover', 'explore', 'all', 'watchlist', 'watched', 'favorites']) {
     assert.ok(html.includes('data-view="' + view + '"'), view + ' view should be reachable');
   }
 });
@@ -94,8 +114,10 @@ test('Source integration is opt-in and does not include hard-coded TMDB credenti
   assert.ok(remote.includes('wbsearchentities'));
   assert.ok(remote.includes('wbgetentities'));
   assert.ok(remote.includes('search/multi'));
+  assert.ok(remote.includes('/api/catalog/status'));
+  assert.ok(remote.includes('wbsearchentities'));
   assert.ok(remote.includes("origin: '*'"));
-  assert.ok(remote.includes("window.AfterframeCatalog.addExternal"));
+  assert.ok(remote.includes("window.AfterframeCatalog?.addExternal"));
   assert.ok(!remote.includes('localStorage'));
   assert.ok(!remote.includes('sessionStorage'));
   assert.ok(!/eyJhbGciOi|sk-[A-Za-z0-9]{16}/.test(remote), 'Unexpected embedded credential');

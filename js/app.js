@@ -3,17 +3,19 @@
 const $=s=>document.querySelector(s), $$=s=>Array.from(document.querySelectorAll(s));
 const icon=n=>`<svg aria-hidden="true"><use href="#i-${n}"></use></svg>`;
 const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-const safeUrl=v=>{try{const x=new URL(String(v),location.href);return ['http:','https:'].includes(x.protocol)?x.href:'';}catch{return '';}};
+const safeUrl=v=>{if(typeof v!=='string'||!/^https?:\/\//i.test(v.trim()))return '';try{const x=new URL(v);return ['http:','https:'].includes(x.protocol)?x.href:'';}catch{return '';}};
 const normal=s=>String(s||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLocaleLowerCase('it');
 const typeNames={film:'Film',anime:'Anime',serie:'Serie TV','film-anime':'Film anime','film-animazione':'Animazione'};
 const scoreNames={emotion:'Emozione',comedy:'Commedia',action:'Azione',romance:'Romanticismo',tension:'Tensione'};
 const statusNames={watchlist:'Da guardare',watching:'In corso',watched:'Già visto'};
 const reactNames={unseen:'Non visto',cried:'Ho pianto',moved:'Mi ha commosso',nothing:'Non mi ha colpito'};
 let films=[],view='discover',typeFilter='all',tagFilter='all',sortFilter='match',query='',editFilmId=null,detailId=null,jsonPlan=null,posterQueue=[],posterActive=false;
+let featuredId=null, remoteSelection=null, detailBackView='discover';
+const posterFailed=new Set();
 const posterCache=new Map();const posterTried=new Set();
 try{const cache=JSON.parse(localStorage.getItem('afterframe-poster-cache')||'{}');Object.entries(cache).forEach(([k,v])=>{if(safeUrl(v))posterCache.set(k,v);});}catch{}
 function fallback(f){return `<div class="poster-fallback"><strong>${esc(f.title)}</strong><span>${esc(f.year)}</span></div>`;}
-function posterMarkup(f,eager=false){const src=safeUrl(f.poster)||safeUrl(posterCache.get(f.id));return `${fallback(f)}${src?`<img class="poster-image" src="${esc(src)}" alt="Locandina di ${esc(f.title)}" width="320" height="480" loading="${eager?'eager':'lazy'}" fetchpriority="${eager?'high':'auto'}" decoding="async" onerror="this.remove()" />`:''}`;}
+function posterMarkup(f,eager=false){const src=(manuallySetPoster(f)?safeUrl(f.poster):'')||safeUrl(posterCache.get(f.id))||(!posterFailed.has(f.id)&&safeUrl(f.poster));return `${fallback(f)}${src?`<img class="poster-image" src="${esc(src)}" alt="Locandina di ${esc(f.title)}" width="320" height="480" loading="${eager?'eager':'lazy'}" fetchpriority="${eager?'high':'auto'}" decoding="async" onerror="this.remove();window.EmotecaPosterFailed?.(\'${esc(f.id)}\')" />`:''}`;}
 function toast(msg,isError=false){const root=$('#toast-root'),el=document.createElement('div');el.className='toast'+(isError?' error':'');el.textContent=msg;root.append(el);setTimeout(()=>el.remove(),4000);}
 function currentFilms(){let arr=films.filter(f=>query?true:view==='discover'?f.status!=='watched':view==='all'?true:view==='watchlist'?f.status!=='watched':view==='watched'?f.status==='watched':view==='favorites'?f.favorite:true);
  if(typeFilter!=='all')arr=arr.filter(f=>f.type===typeFilter);
@@ -23,14 +25,25 @@ function currentFilms(){let arr=films.filter(f=>query?true:view==='discover'?f.s
  return arr;}
 const titles={
  discover:['La tua selezione','Le storie che hai scelto di tenere a portata di mano.'],
+ explore:['Tutti i film','Cerca film e serie nei cataloghi internazionali.'],
  all:['La libreria','Tutti i titoli del tuo archivio personale.'],
  watchlist:['Da guardare','Film e serie ancora da vedere.'],
  watched:['Già visti','Le visioni che hai registrato.'],
  favorites:['I preferiti','I titoli a cui vuoi tornare.']
 };
-const viewLabels={discover:'In evidenza',all:'Libreria',watchlist:'Da guardare',watched:'Visti',favorites:'Preferiti'};
+const viewLabels={discover:'In evidenza',explore:'Tutti i film',all:'Libreria',watchlist:'Da guardare',watched:'Visti',favorites:'Preferiti'};
 function featuredFilm(){
- return films.find(f=>f.featured&&f.status!=='watched')||films.find(f=>f.status!=='watched')||films[0]||null;
+ const candidates=films.filter(f=>f.status!=='watched'&&f.reaction==='unseen');
+ if(!candidates.length){featuredId=null;return null;}
+ const current=candidates.find(f=>f.id===featuredId);
+ if(current)return current;
+ let previous='';
+ try{previous=sessionStorage.getItem('emoteca-featured-last')||'';}catch{}
+ const pool=candidates.filter(f=>f.id!==previous);
+ const choice=(pool.length?pool:candidates)[Math.floor(Math.random()*(pool.length||candidates.length))];
+ featuredId=choice.id;
+ try{sessionStorage.setItem('emoteca-featured-last',choice.id);}catch{}
+ return choice;
 }
 function renderFeatured(){
  const f=featuredFilm(),hero=$('#hero');
@@ -53,7 +66,7 @@ function renderFeatured(){
 function renderRail(){
  const rail=$('#editorial-rail');
  const featured=featuredFilm();
- const candidates=films.filter(f=>f.status!=='watched'&&f.id!==featured?.id).slice().sort((a,b)=>b.match-a.match);
+ const candidates=films.filter(f=>f.status!=='watched'&&f.reaction==='unseen'&&f.id!==featured?.id).slice().sort((a,b)=>b.match-a.match);
  const picks=candidates.slice(0,7);
  rail.innerHTML=picks.map(f=>card(f)).join('');
  $('#reel-section').hidden=view!=='discover'||!!query||picks.length===0;
@@ -74,6 +87,11 @@ function render(){
   else button.removeAttribute('aria-current');
  });
  $('#page-title').textContent='Emoteca — '+viewLabels[view];
+ const isBrowse=view==='explore';
+ document.querySelector('.page-body').hidden=isBrowse;
+ $('#explore-page').hidden=!isBrowse;
+ $('#detail-screen').hidden=true;
+ if(isBrowse)return;
  $('#current-view-name').textContent=query?'Risultati di ricerca':'La tua collezione';
  $('#section-title').textContent=query?'Risultati per “'+query+'”':titles[view][0];
  $('#section-caption').textContent=query?'Cerca fra tutti i titoli che hai salvato.':titles[view][1];
@@ -110,13 +128,36 @@ function card(f){
 function refreshTagOptions(){const select=$('#tag-filter'),all=[...new Set(films.flatMap(f=>f.tags.map(normal)))].sort((a,b)=>a.localeCompare(b,'it'));let html='<option value="all">Tutti i temi</option>';for(const tag of all)html+=`<option value="${esc(tag)}">${esc(tag.charAt(0).toUpperCase()+tag.slice(1))}</option>`;select.innerHTML=html;select.value=tagFilter;if(select.value!==tagFilter){tagFilter='all';select.value='all';}}
 function setView(v,updateHistory=true){
  if(!Object.hasOwn(titles,v))return;
+ if(v==='explore'){openExplore('',updateHistory);return;}
+ if(view!==v&&v==='discover')featuredId=null;
  view=v;typeFilter='all';tagFilter='all';query='';
  $('#search').value='';
  $('#tag-filter').value='all';
  $('#sort-filter').value='match';sortFilter='match';
- if(updateHistory&&window.history)window.history.pushState({view:v},'',v==='discover'?location.pathname:('#'+v));
+ if(updateHistory)history.pushState({view:v},'',v==='discover'?location.pathname:('#'+v));
+ document.title='Emoteca — La tua libreria di cinema';
  render();
  window.scrollTo({top:0,behavior:window.matchMedia('(prefers-reduced-motion: reduce)').matches?'auto':'smooth'});
+}
+async function openExplore(term='',updateHistory=true){
+ const first=view!=='explore';
+ view='explore';query='';
+ document.title='Tutti i film — Emoteca';
+ $('#search').value=term;
+ $('#catalog-query').value=term;
+ if(updateHistory){
+  const url=new URL(location.href);
+  url.search='';
+  url.hash='';
+  url.searchParams.set('view','explore');
+  if(term)url.searchParams.set('q',term);
+  history.pushState({view:'explore'},'',url.pathname+url.search);
+ }
+ render();
+ await window.EmotecaExplorer?.init?.();
+ const typed=$('#catalog-query').value.trim() || $('#search').value.trim() || term;
+ window.EmotecaExplorer?.search?.(typed);
+ if(first)window.scrollTo({top:0,behavior:'auto'});
 }
 async function store(next,notify){await CatalogDB.write(next);films=next;render();if(notify)toast(notify);}
 async function changeFilm(id,change){const next=films.map(f=>f.id===id?{...f,...change,updatedAt:new Date().toISOString()}:f);await store(next);}
@@ -127,49 +168,74 @@ function streaming(f){const q=encodeURIComponent(f.title),search=encodeURICompon
  if(['anime','film-anime'].includes(f.type))base.push({name:'Crunchyroll',hint:'Cerca anime',url:`https://www.crunchyroll.com/search?q=${search}`});
  if(Array.isArray(f.links))for(const l of f.links){if(l&&safeUrl(l.url)&&l.name)base.unshift({name:l.name,hint:'Link personalizzato',url:l.url});}
  return base.map(l=>`<a class="watch-link" href="${esc(safeUrl(l.url))}" target="_blank" rel="noopener noreferrer"><span>${esc(l.name)} <small style="color:#88859a;font-weight:500">· ${esc(l.hint)}</small></span>${icon('external')}</a>`).join('');}
-function showDetail(id){
- const f=films.find(x=>x.id===id);if(!f)return;
+function showDetail(id,push=true){
+ const personal=films.find(x=>x.id===id);
+ const f=personal||(remoteSelection?.id===id?remoteSelection:null);
+ if(!f)return;
  detailId=id;
- const scoreRows=Object.entries(scoreNames).map(([key,name])=>`<div class="score-row"><span>${esc(name)}</span><div class="score-track"><div class="score-fill" style="width:${f.scores[key]*20}%"></div></div><span class="score-number">${f.scores[key]}/5</span></div>`).join('');
- $('#detail-content').innerHTML=`<div class="detail-hero">
-  <div class="detail-poster" data-poster="${esc(f.id)}">${posterMarkup(f)}</div>
-  <div class="detail-intro">
-    <div class="detail-headingline">${esc(typeNames[f.type])}<span aria-hidden="true">/</span>${esc(f.year)}${f.duration?`<span aria-hidden="true">/</span>${esc(f.duration)}`:''}</div>
-    <h2>${esc(f.title)}</h2>
-    <p class="detail-description">${esc(f.description||'Nessuna sinossi disponibile.')}</p>
-    <div class="detail-actions">
-      <button class="button primary" type="button" data-action="toggle-watched" data-id="${esc(f.id)}">${icon(f.status==='watched'?'check':'eye')}${esc(f.status==='watched'?'Già visto — segna da guardare':'Segna come visto')}</button>
-      <button class="button quiet" type="button" data-action="toggle-favorite-detail" data-id="${esc(f.id)}">${icon('heart')}${esc(f.favorite?'Rimuovi dai preferiti':'Aggiungi ai preferiti')}</button>
-    </div>
-    ${f.why?`<p class="detail-why">${esc(f.why)}</p>`:''}
-  </div>
-  <button class="tool-icon detail-close" type="button" data-close="detail-dialog" aria-label="Chiudi la scheda">${icon('close')}</button>
- </div>
- <div class="detail-body">
-   <section class="reaction-panel">
+ if(push){
+   detailBackView=view;
+   const url=new URL(location.href);
+   url.search='';url.hash='';
+   url.searchParams.set('film',id);
+   history.pushState({film:id,from:view},'',url.pathname+url.search);
+ }
+ document.querySelector('.page-body').hidden=true;
+ $('#explore-page').hidden=true;
+ $('#detail-screen').hidden=false;
+ $('#film-page-title').textContent='Scheda di '+f.title;
+ document.title=f.title+' — Emoteca';
+ const saved=Boolean(personal);
+ const scoreRows=Object.entries(scoreNames).map(([key,name])=>`<div class="score-row"><span>${esc(name)}</span><div class="score-track"><div class="score-fill" style="width:${(f.scores?.[key]||0)*20}%"></div></div><span class="score-number">${f.scores?.[key]||0}/5</span></div>`).join('');
+ const heroButtons=saved
+   ? `<button class="button primary" type="button" data-action="toggle-watched" data-id="${esc(f.id)}">${icon(f.status==='watched'?'check':'eye')}${esc(f.status==='watched'?'Segna da guardare':'Segna come visto')}</button>
+      <button class="button quiet" type="button" data-action="toggle-favorite-detail" data-id="${esc(f.id)}">${icon('heart')}${esc(f.favorite?'Rimuovi dai preferiti':'Aggiungi ai preferiti')}</button>`
+   : `<button class="button primary" type="button" data-action="add-preview" ${Number.isInteger(f.year)?'':'disabled'}>${icon('plus')} ${Number.isInteger(f.year)?'Aggiungi alla mia libreria':'Anno non disponibile'}</button>
+      <button class="button quiet" type="button" data-view="explore">Torna al catalogo</button>`;
+ const journal=saved?`<section class="reaction-panel">
      <h3>Il tuo diario</h3>
-     <p>Registra cosa hai visto e conserva una nota personale.</p>
+     <p>Una volta vista, questa storia rimane qui insieme ai tuoi ricordi.</p>
      <fieldset class="reaction-fieldset">
        <legend>Come ti ha lasciato?</legend>
        <div class="reaction-buttons">${Object.entries(reactNames).map(([value,label])=>`<button class="reaction-choice ${f.reaction===value?'active':''}" type="button" data-reaction="${value}" data-id="${esc(f.id)}" aria-pressed="${f.reaction===value?'true':'false'}">${esc(label)}</button>`).join('')}</div>
      </fieldset>
      <div class="rating-line"><label for="personal-rating">Il tuo voto</label><input id="personal-rating" type="range" min="0" max="10" step="1" value="${f.rating===null?0:f.rating}"><output id="personal-output">${f.rating===null?'—':f.rating+'/10'}</output></div>
-     <div class="note-field"><label for="personal-notes">Note private</label><textarea id="personal-notes" rows="4" maxlength="3000" placeholder="Scrivi qualcosa che vuoi ricordare…">${esc(f.notes)}</textarea></div>
+     <div class="note-field"><label for="personal-notes">Note private</label><textarea id="personal-notes" rows="6" maxlength="3000" placeholder="Scrivi quello che vuoi ricordare…">${esc(f.notes)}</textarea></div>
      <button class="button secondary save-personal" type="button" data-action="save-personal" data-id="${esc(f.id)}">${icon('check')} Salva voto e note</button>
-   </section>
+   </section>`:`<section class="reaction-panel">
+      <h3>Fallo tuo.</h3>
+      <p>Questo titolo proviene dal catalogo mondiale. Aggiungilo alla libreria per segnarlo come visto, conservarne il voto o scrivere note private.</p>
+      <button class="button primary" type="button" data-action="add-preview" ${Number.isInteger(f.year)?'':'disabled'}>Aggiungi alla libreria</button>
+      ${!Number.isInteger(f.year)?'<p class="link-notice">Questa fonte non indica l’anno: puoi aggiungere il titolo manualmente.</p>':''}
+    </section>`;
+ const image=f.backdrop&&safeUrl(f.backdrop)?`<img class="detail-backdrop" src="${esc(safeUrl(f.backdrop))}" alt="" loading="eager" referrerpolicy="no-referrer" onerror="this.remove()" />`:'';
+ $('#detail-content').innerHTML=`<div class="detail-hero">
+  ${image}
+  <div class="detail-poster" data-poster="${esc(f.id)}">${posterMarkup(f,true)}</div>
+  <div class="detail-intro">
+    <div class="detail-headingline"><span>${esc(typeNames[f.type]||'Film')}</span><span aria-hidden="true">/</span>${esc(f.year||'Anno non disponibile')}${f.duration?`<span aria-hidden="true">/</span>${esc(f.duration)}`:''}</div>
+    <h2>${esc(f.title)}</h2>
+    ${f.genre?`<p class="detail-genres">${esc(f.genre)}</p>`:''}
+    ${f.description?`<p class="detail-description">${esc(f.description)}</p>`:'<p class="detail-description">La fonte non fornisce una sinossi per questo titolo.</p>'}
+    <div class="detail-actions">${heroButtons}</div>
+    ${saved&&f.why?`<p class="detail-why">${esc(f.why)}</p>`:''}
+    ${!saved?`<p class="detail-origin">Scheda da ${esc(f.source||'catalogo esterno')}</p>`:''}
+  </div>
+ </div>
+ <div class="detail-body">
+   ${journal}
    <aside class="detail-aside">
      ${f.tags?.length?`<div class="detail-block"><h3>Temi</h3><div class="detail-tags">${f.tags.map(t=>`<span>${esc(t)}</span>`).join('')}</div></div>`:''}
      ${f.warnings?`<p class="detail-warnings">Avvertenze: ${esc(f.warnings)}</p>`:''}
-     ${Object.values(f.scores).some(n=>n>0)?`<details class="profile-details"><summary>Profilo editoriale del titolo</summary><div class="detail-scores">${scoreRows}</div><p class="link-notice">Stime editoriali, non voti del pubblico.</p></details>`:''}
-     <div class="detail-block"><h3>Dove cercarlo</h3><div class="watch-links">${streaming(f)}</div><p class="link-notice">I link aprono ricerche esterne, non indicano disponibilità verificata.</p></div>
+     ${saved&&Object.values(f.scores||{}).some(n=>n>0)?`<details class="profile-details"><summary>Profilo editoriale del titolo</summary><div class="detail-scores">${scoreRows}</div><p class="link-notice">Stime editoriali, non voti del pubblico.</p></details>`:''}
+     <div class="detail-block"><h3>Dove cercarlo</h3><div class="watch-links">${streaming(f)}</div>
+      <p class="link-notice">I collegamenti aprono ricerche esterne e non garantiscono la disponibilità in streaming.</p></div>
+     ${!saved&&f.sourceUrl&&safeUrl(f.sourceUrl)?`<a class="detail-source-link" target="_blank" rel="noopener noreferrer" href="${esc(safeUrl(f.sourceUrl))}">Apri la scheda su ${esc(f.source||'fonte esterna')} ${icon('external')}</a>`:''}
    </aside>
  </div>
- <div class="detail-bottom">
-   <button class="button secondary" type="button" data-action="edit" data-id="${esc(f.id)}">${icon('edit')} Modifica scheda</button>
-   <button class="button secondary danger" type="button" data-action="delete" data-id="${esc(f.id)}">${icon('trash')} Elimina</button>
- </div>`;
- openDialog('detail-dialog');
+ ${saved?`<div class="detail-bottom"><button class="button secondary" type="button" data-action="edit" data-id="${esc(f.id)}">${icon('edit')} Modifica scheda</button><button class="button secondary danger" type="button" data-action="delete" data-id="${esc(f.id)}">${icon('trash')} Elimina dalla libreria</button></div>`:''}`;
  observePosters();
+ window.scrollTo({top:0,behavior:'auto'});
 }
 function editSliders(scores){$('#edit-sliders').innerHTML=Object.entries(scoreNames).map(([key,label])=>`<div class="score-edit"><label for="score-${key}">${esc(label)}</label><input id="score-${key}" name="score-${key}" type="range" min="0" max="5" step="1" value="${scores[key]??0}"><output id="out-${key}">${scores[key]??0}/5</output></div>`).join('');}
 function slug(t){return normal(t).replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'').slice(0,75)||'nuovo-titolo';}
@@ -179,8 +245,8 @@ function openEdit(id){const f=films.find(x=>x.id===id);editFilmId=f?f.id:null;$(
  form.elements.tags.value=(data.tags||[]).join(', ');editSliders(data.scores);openDialog('edit-dialog');}
 function getFormFilm(){const f=$('#film-form').elements;const old=films.find(x=>x.id===editFilmId);const scores={};Object.keys(scoreNames).forEach(k=>scores[k]=Number(f['score-'+k].value));
  const obj={...(old||{}),id:f.id.value.trim(),title:f.title.value.trim(),year:Number(f.year.value),type:f.type.value,genre:f.genre.value.trim(),description:f.description.value.trim(),why:f.why.value.trim(),tags:f.tags.value.split(',').map(x=>x.trim()).filter(Boolean),poster:f.poster.value.trim(),posterQuery:f.posterQuery.value.trim(),duration:f.duration.value.trim(),match:Number(f.match.value),warnings:f.warnings.value.trim(),scores};return validateFilm(obj);}
-async function saveEdit(e){e.preventDefault();try{const film=getFormFilm();if(films.some(x=>x.id===film.id&&x.id!==editFilmId))throw Error('Esiste già un titolo con questo ID.');let next;if(editFilmId){next=films.map(x=>x.id===editFilmId?film:x);if(editFilmId!==film.id&&posterCache.has(editFilmId)){posterCache.delete(editFilmId);}}else{next=[film,...films];}await store(next,'Titolo salvato nel database locale.');closeDialog('edit-dialog');if(editFilmId&&detailId===editFilmId){closeDialog('detail-dialog');showDetail(film.id);}}catch(err){toast(err.message,true);}}
-async function deleteFilm(id){const f=films.find(x=>x.id===id);if(!f)return;if(!confirm(`Eliminare definitivamente "${f.title}" dalla libreria locale?`))return;try{await store(films.filter(x=>x.id!==id),'Titolo eliminato.');closeDialog('detail-dialog');}catch(e){toast(e.message,true);}}
+async function saveEdit(e){e.preventDefault();try{const film=getFormFilm();if(films.some(x=>x.id===film.id&&x.id!==editFilmId))throw Error('Esiste già un titolo con questo ID.');let next;if(editFilmId){next=films.map(x=>x.id===editFilmId?film:x);if(editFilmId!==film.id&&posterCache.has(editFilmId)){posterCache.delete(editFilmId);}}else{next=[film,...films];}await store(next,'Titolo salvato nel database locale.');closeDialog('edit-dialog');if(editFilmId&&detailId===editFilmId)showDetail(film.id,false);}catch(err){toast(err.message,true);}}
+async function deleteFilm(id){const f=films.find(x=>x.id===id);if(!f)return;if(!confirm(`Eliminare definitivamente "${f.title}" dalla libreria locale?`))return;try{await store(films.filter(x=>x.id!==id),'Titolo eliminato.');setView('all');}catch(e){toast(e.message,true);}}
 function downloadJson(name,obj){const blob=new Blob([JSON.stringify(obj,null,2)+'\n'],{type:'application/json;charset=utf-8'}),url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(url),2000);}
 const example={version:1,operations:[{op:'update',id:'warrior-2011',changes:{scores:{emotion:5},notes:'Esempio: modifico soltanto i campi indicati.'}},{op:'add',film:{id:'il-mio-film-2026',title:'Il mio film',year:2026,type:'film',genre:'Drammatico',description:'Trama breve senza spoiler.',why:'Un grande sacrificio.',tags:['sacrificio','famiglia'],scores:{emotion:5,comedy:1,action:2,romance:1,tension:3},match:85}},{op:'delete',id:'il-mio-film-2026'}]};
 function importShape(input){
@@ -242,20 +308,89 @@ async function applyImport(){try{if(!jsonPlan||jsonPlan.raw!==$('#json-input').v
  const destructive=jsonPlan.changes.filter(c=>c.op==='delete');if(jsonPlan.mode!=='replace'&&destructive.length&&!confirm(`Questa importazione contiene ${destructive.length} operazioni di eliminazione. Confermi?`))return;
  const n=jsonPlan.next.length,c=jsonPlan.changes.length;await store(jsonPlan.next,`Importazione riuscita: ${c} operazioni applicate, ${n} titoli nel database.`);$('#json-input').value='';jsonPlan=null;preview();closeDialog('json-dialog');
  }catch(e){toast(e.message,true);}}
-function tryCachedPoster(f){return safeUrl(f.poster)||safeUrl(posterCache.get(f.id));}
+function manuallySetPoster(f){
+ if(!f.poster||posterFailed.has(f.id))return false;
+ const seed=window.SEED_FILMS?.find(item=>item.id===f.id);
+ return !seed || seed.poster!==f.poster;
+}
+function tryCachedPoster(f){
+ return (manuallySetPoster(f)?safeUrl(f.poster):'')||
+  safeUrl(posterCache.get(f.id))||(!posterFailed.has(f.id)&&safeUrl(f.poster));
+}
+function shouldEnrichPoster(f){
+ if(!f)return false;
+ const tmdb=window.EmotecaExplorer?.isEnabled?.();
+ const cached=safeUrl(posterCache.get(f.id));
+ return Boolean(f&&!posterTried.has(f.id)&&(
+  (tmdb&&!manuallySetPoster(f)&&!cached.includes('image.tmdb.org'))||!tryCachedPoster(f)
+ ));
+}
 let observer=null;
-function observePosters(){if(observer){observer.disconnect();observer=null;}const nodes=$$('[data-open] .poster-fallback, [data-poster] .poster-fallback');
- const fresh=nodes.filter(el=>{const f=films.find(x=>x.id===el.parentElement.dataset.open||x.id===el.parentElement.dataset.poster);return f&&!tryCachedPoster(f)&&!posterTried.has(f.id);});
- if(!('IntersectionObserver' in window)){fresh.slice(0,15).forEach(el=>queuePoster(el.parentElement.dataset.open||el.parentElement.dataset.poster));return;}
- observer=new IntersectionObserver(entries=>{for(const entry of entries){if(!entry.isIntersecting)continue;const n=entry.target.parentElement, id=n.dataset.open||n.dataset.poster;queuePoster(id);observer.unobserve(entry.target);}}, {rootMargin:'300px'});fresh.forEach(el=>observer.observe(el));}
+function observePosters(){
+ if(observer){observer.disconnect();observer=null;}
+ const nodes=$$('[data-open] .poster-fallback, [data-poster] .poster-fallback');
+ const fresh=nodes.filter(el=>{
+  const id=el.parentElement.dataset.open||el.parentElement.dataset.poster;
+  return shouldEnrichPoster(films.find(f=>f.id===id));
+ });
+ if(!('IntersectionObserver' in window)){
+  fresh.slice(0,15).forEach(el=>queuePoster(el.parentElement.dataset.open||el.parentElement.dataset.poster));
+  return;
+ }
+ observer=new IntersectionObserver(entries=>{
+  for(const entry of entries){
+   if(!entry.isIntersecting)continue;
+   const n=entry.target.parentElement,id=n.dataset.open||n.dataset.poster;
+   queuePoster(id);observer.unobserve(entry.target);
+  }
+ },{rootMargin:'300px'});
+ fresh.forEach(el=>observer.observe(el));
+}
 function queuePoster(id){if(!id||posterTried.has(id))return;posterTried.add(id);posterQueue.push(id);pumpPosters();}
-async function pumpPosters(){if(posterActive)return;posterActive=true;while(posterQueue.length){const id=posterQueue.shift(),f=films.find(x=>x.id===id);if(f&&!tryCachedPoster(f)){
-  try{const src=await fetchPoster(f);if(src){posterCache.set(id,src);try{localStorage.setItem('afterframe-poster-cache',JSON.stringify(Object.fromEntries(posterCache)));}catch{}
-    $$(`[data-open="${CSS.escape(id)}"], [data-poster="${CSS.escape(id)}"]`).forEach(node=>{if(node.querySelector('.poster-image'))return;const image=document.createElement('img');image.className='poster-image';image.src=src;image.alt='Copertina di '+f.title;image.loading='lazy';image.decoding='async';image.onerror=()=>image.remove();node.appendChild(image);});
-  }}catch{}
- }await new Promise(r=>setTimeout(r,650));}posterActive=false;}
+window.EmotecaPosterFailed=id=>{
+ if(!/^[a-z0-9-]{1,90}$/.test(id))return;
+ posterFailed.add(id);posterCache.delete(id);
+ if(films.some(f=>f.id===id)){posterTried.delete(id);queuePoster(id);}
+};
+async function pumpPosters(){
+ if(posterActive)return;
+ posterActive=true;
+ while(posterQueue.length){
+  const id=posterQueue.shift(),f=films.find(x=>x.id===id);
+  const enabled=window.EmotecaExplorer?.isEnabled?.();
+  const cached=safeUrl(posterCache.get(id));
+  const enrich=enabled&&!manuallySetPoster(f||{})&&!cached.includes('image.tmdb.org');
+  if(f&&(enrich||!tryCachedPoster(f))){
+   try{
+    const src=await fetchPoster(f);
+    if(src){
+     posterCache.set(id,src);posterFailed.delete(id);
+     try{localStorage.setItem('afterframe-poster-cache',JSON.stringify(Object.fromEntries(posterCache)));}catch{}
+     $$('[data-open], [data-poster]').filter(node=>
+       node.dataset.open===id||node.dataset.poster===id).forEach(node=>{
+       let image=node.querySelector('.poster-image');
+       if(!image){
+        image=document.createElement('img');image.className='poster-image';
+        image.alt='Copertina di '+f.title;image.loading='lazy';image.decoding='async';
+        image.width=320;image.height=480;node.appendChild(image);
+       }
+       image.onerror=()=>{image.remove();posterFailed.add(id);};
+       image.src=src;
+     });
+    }
+   }catch{}
+  }
+  await new Promise(r=>setTimeout(r,650));
+ }
+ posterActive=false;
+}
 function similarity(a,b){const x=normal(a).replace(/[^a-z0-9]/g,''),y=normal(b).replace(/[^a-z0-9]/g,'');if(x===y)return 10;if(x.includes(y)||y.includes(x))return 7;let words=normal(a).split(/\W+/).filter(w=>w.length>3);return words.filter(w=>normal(b).includes(w)).length;}
 async function fetchPoster(f){const term=f.posterQuery||f.title;
+ try{
+   const tmdb=await window.EmotecaExplorer?.posterFor?.(f);
+   if(safeUrl(tmdb))return tmdb;
+ }catch{}
+ if(tryCachedPoster(f))return null;
  if(['anime','film-anime'].includes(f.type)){
   try{const r=await fetch(`https://api.jikan.moe/v4/anime?q=${encodeURIComponent(term)}&limit=5`);if(r.ok){const json=await r.json();const data=(json.data||[]).sort((a,b)=>Math.max(similarity(b.title,term),similarity(b.title_english||'',term))-Math.max(similarity(a.title,term),similarity(a.title_english||'',term)));const item=data[0];if(item&&Math.max(similarity(item.title,term),similarity(item.title_english||'',term))>=2){const url=item.images?.jpg?.large_image_url||item.images?.jpg?.image_url;if(safeUrl(url))return url;}}}catch{}
  }
@@ -271,38 +406,133 @@ async function fileLoad(file){if(!file||file.size>2_000_000){toast('File assente
 function onClick(e){const clos=e.target.closest('[data-close]');if(clos){closeDialog(clos.dataset.close);return;}
  const viewButton=e.target.closest('[data-view]');if(viewButton){setView(viewButton.dataset.view);return;}
  const fav=e.target.closest('[data-favorite]');if(fav){const f=films.find(x=>x.id===fav.dataset.favorite);if(f)changeFilm(f.id,{favorite:!f.favorite}).catch(x=>toast(x.message,true));return;}
- const reaction=e.target.closest('[data-reaction]');if(reaction){const f=films.find(x=>x.id===reaction.dataset.id);if(f)changeFilm(f.id,{reaction:reaction.dataset.reaction,status:reaction.dataset.reaction==='unseen'?'watchlist':'watched'}).then(()=>showDetail(f.id)).catch(x=>toast(x.message,true));return;}
+ const reaction=e.target.closest('[data-reaction]');if(reaction){const f=films.find(x=>x.id===reaction.dataset.id);if(f)changeFilm(f.id,{reaction:reaction.dataset.reaction,status:reaction.dataset.reaction==='unseen'?'watchlist':'watched'}).then(()=>showDetail(f.id,false)).catch(x=>toast(x.message,true));return;}
  const open=e.target.closest('[data-open]');if(open){showDetail(open.dataset.open);return;}
  const action=e.target.closest('[data-action]');if(!action)return;const id=action.dataset.id;
  switch(action.dataset.action){case'add':openEdit();break;
- case'hero-detail':{const f=films.find(x=>x.featured)||films[0];if(f)showDetail(f.id);break;}
+ case'hero-detail':{const f=featuredFilm();if(f)showDetail(f.id);break;}
  case'json':openJson();break;
+ case'back-detail':{if(detailBackView==='explore')openExplore(window.EmotecaExplorer?.currentQuery?.()||'');else setView(detailBackView);break;}
+ case'add-preview':{
+   if(!remoteSelection || !window.EmotecaExplorer)return;
+   let raw;
+   try{raw=window.EmotecaExplorer.toLocalFilm(remoteSelection);}
+   catch(error){toast(error.message,true);return;}
+   window.AfterframeCatalog.addExternal(raw).then(outcome=>{
+      remoteSelection=null;
+      showDetail(outcome.id,false);
+   }).catch(error=>toast(error.message,true));
+   break;
+ }
  case'clear-filters':typeFilter='all';tagFilter='all';query='';$('#search').value='';render();break;
- case'edit':closeDialog('detail-dialog');openEdit(id);break;
+ case'edit':openEdit(id);break;
  case'delete':deleteFilm(id).catch(x=>toast(x.message,true));break;
- case'toggle-watched':{const f=films.find(x=>x.id===id);if(f)changeFilm(id,{status:f.status==='watched'?'watchlist':'watched',reaction:f.status==='watched'?'unseen':f.reaction}).then(()=>showDetail(id)).catch(x=>toast(x.message,true));break;}
- case'toggle-favorite-detail':{const f=films.find(x=>x.id===id);if(f)changeFilm(id,{favorite:!f.favorite}).then(()=>showDetail(id)).catch(x=>toast(x.message,true));break;}
- case'save-personal':{const rating=Number($('#personal-rating').value),notes=$('#personal-notes').value;changeFilm(id,{rating:rating===0?null:rating,notes}).then(()=>{showDetail(id);toast('Voto e note salvati.');}).catch(x=>toast(x.message,true));break;}
+ case'toggle-watched':{const f=films.find(x=>x.id===id);if(f)changeFilm(id,{status:f.status==='watched'?'watchlist':'watched',reaction:f.status==='watched'?'unseen':f.reaction}).then(()=>showDetail(id,false)).catch(x=>toast(x.message,true));break;}
+ case'toggle-favorite-detail':{const f=films.find(x=>x.id===id);if(f)changeFilm(id,{favorite:!f.favorite}).then(()=>showDetail(id,false)).catch(x=>toast(x.message,true));break;}
+ case'save-personal':{const rating=Number($('#personal-rating').value),notes=$('#personal-notes').value;changeFilm(id,{rating:rating===0?null:rating,notes}).then(()=>{showDetail(id,false);toast('Voto e note salvati.');}).catch(x=>toast(x.message,true));break;}
  case'export':downloadJson(`afterframe-backup-${new Date().toISOString().slice(0,10)}.json`,{format:'afterframe-catalog',version:1,exportedAt:new Date().toISOString(),films});toast('Backup JSON esportato.');break;
  case'example':downloadJson('afterframe-import-esempio.json',example);break;
  case'copy-example':$('#json-input').value=JSON.stringify(example,null,2);preview();break;
  case'preview':preview();break;
  case'apply':applyImport();break;
- case'reset':{if(!confirm('Ripristinare il catalogo iniziale? Tutte le modifiche, voti e titoli aggiunti saranno cancellati. Esporta prima un backup.'))break;if(!confirm('Ultima conferma: vuoi davvero cancellare le modifiche locali?'))break;store(structuredClone(window.SEED_FILMS),'Catalogo iniziale ripristinato.').then(()=>{closeDialog('json-dialog');closeDialog('detail-dialog');}).catch(x=>toast(x.message,true));break;}
+ case'reset':{if(!confirm('Ripristinare il catalogo iniziale? Tutte le modifiche, voti e titoli aggiunti saranno cancellati. Esporta prima un backup.'))break;if(!confirm('Ultima conferma: vuoi davvero cancellare le modifiche locali?'))break;store(structuredClone(window.SEED_FILMS),'Catalogo iniziale ripristinato.').then(()=>{closeDialog('json-dialog');setView('discover');}).catch(x=>toast(x.message,true));break;}
  }
 }
-async function init(){try{let old=await CatalogDB.read();if(old===undefined||old===null){old=structuredClone(window.SEED_FILMS);await CatalogDB.write(old);}if(!Array.isArray(old))throw Error('Il database contiene dati in un formato non riconosciuto.');films=old.map(validateFilm);render();
- if(Object.hasOwn(titles,location.hash.slice(1))) {view=location.hash.slice(1);render();}
- }catch(e){toast('Errore di caricamento: '+e.message,true);films=structuredClone(window.SEED_FILMS);render();}
- $('#search').addEventListener('input',e=>{query=e.target.value.trim();render();});$('#tag-filter').addEventListener('change',e=>{tagFilter=e.target.value;render();});$('#sort-filter').addEventListener('change',e=>{sortFilter=e.target.value;render();});$('#type-filters').addEventListener('click',e=>{const b=e.target.closest('[data-type]');if(b){typeFilter=b.dataset.type;render();}});
- document.addEventListener('click',onClick);window.addEventListener('popstate',()=>{const v=location.hash.slice(1)||'discover';setView(v,false);});document.addEventListener('keydown',e=>{if(e.key==='/'&&!e.ctrlKey&&!e.altKey&&!e.metaKey&&!['INPUT','TEXTAREA'].includes(document.activeElement.tagName)&&!$$('dialog').some(d=>d.open)){e.preventDefault();$('#search').focus();}if((e.key==='Enter'||e.key===' ')&&e.target.matches('[data-open]')){e.preventDefault();showDetail(e.target.dataset.open);}});
+async function routeFromLocation(){
+ const params=new URLSearchParams(location.search);
+ const filmId=params.get('film');
+ if(filmId && /^[a-z0-9-]{1,90}$/.test(filmId)){
+   const existing=films.find(f=>f.id===filmId);
+   if(existing){showDetail(filmId,false);return;}
+   await window.EmotecaExplorer?.init?.();
+   const remote=await window.EmotecaExplorer?.detail?.(filmId);
+   if(remote){
+      await window.AfterframeCatalog.openExternal(remote,false);
+      return;
+   }
+   setView('explore',false);
+   toast('Scheda esterna non disponibile. Cerca il titolo nel catalogo.',true);
+   return;
+ }
+ if(params.get('view')==='explore'){
+   await openExplore(params.get('q')||'',false);
+   return;
+ }
+ const selected=location.hash.slice(1);
+ if(Object.hasOwn(titles,selected)&&selected!=='explore'){setView(selected,false);return;}
+ setView('discover',false);
+}
+async function init(){
+ try{
+   let old=await CatalogDB.read();
+   if(old===undefined||old===null){old=structuredClone(window.SEED_FILMS);await CatalogDB.write(old);}
+   if(!Array.isArray(old))throw Error('Il database contiene dati in un formato non riconosciuto.');
+   films=old.map(validateFilm);
+   render();
+ }catch(e){
+   toast('Errore di caricamento: '+e.message,true);
+   films=structuredClone(window.SEED_FILMS);
+   render();
+ }
+ await routeFromLocation();
+ window.EmotecaExplorer?.init?.().then(()=>{
+   if(window.EmotecaExplorer?.isEnabled?.()){posterTried.clear();observePosters();}
+ }).catch(()=>{});
+ $('#search').addEventListener('input',e=>{
+ const term=e.target.value.trim();
+ if(term.length>=2){
+   if(view!=='explore')openExplore(term);
+   else {
+     $('#catalog-query').value=term;
+     window.EmotecaExplorer?.search?.(term);
+     const url=new URL(location.href);url.searchParams.set('q',term);
+     history.replaceState({view:'explore'},'',url.pathname+url.search);
+   }
+ }else if(view==='explore'){
+   $('#catalog-query').value=term;
+   window.EmotecaExplorer?.search?.(term);
+ }
+});$('#tag-filter').addEventListener('change',e=>{tagFilter=e.target.value;render();});$('#sort-filter').addEventListener('change',e=>{sortFilter=e.target.value;render();});$('#type-filters').addEventListener('click',e=>{const b=e.target.closest('[data-type]');if(b){typeFilter=b.dataset.type;render();}});
+ document.addEventListener('click',onClick);window.addEventListener('popstate',()=>{routeFromLocation();});document.addEventListener('keydown',e=>{if(e.key==='/'&&!e.ctrlKey&&!e.altKey&&!e.metaKey&&!['INPUT','TEXTAREA'].includes(document.activeElement.tagName)&&!$$('dialog').some(d=>d.open)){e.preventDefault();$('#search').focus();}if((e.key==='Enter'||e.key===' ')&&e.target.matches('[data-open]')){e.preventDefault();showDetail(e.target.dataset.open);}});
  $('#film-form').addEventListener('submit',saveEdit);$('#edit-title').addEventListener('input',e=>{if(!editFilmId)$('#edit-id').value=slug(e.target.value);});$('#edit-sliders').addEventListener('input',e=>{if(e.target.matches('input[type=range]'))$('#out-'+e.target.id.slice(6)).textContent=e.target.value+'/5';});
- $('#detail-dialog').addEventListener('input',e=>{if(e.target.id==='personal-rating')$('#personal-output').textContent=e.target.value==='0'?'—':e.target.value+'/10';});
+ $('#detail-screen').addEventListener('input',e=>{if(e.target.id==='personal-rating')$('#personal-output').textContent=e.target.value==='0'?'—':e.target.value+'/10';});
  $('#json-input').addEventListener('input',()=>{jsonPlan=null;$('#apply-import').disabled=true;});$('#json-file').addEventListener('change',e=>fileLoad(e.target.files[0]));const drop=$('#drop-zone');drop.addEventListener('click',()=>$('#json-file').click());drop.addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();$('#json-file').click();}});drop.addEventListener('dragover',e=>{e.preventDefault();drop.classList.add('drag-over');});drop.addEventListener('dragleave',()=>drop.classList.remove('drag-over'));drop.addEventListener('drop',e=>{e.preventDefault();drop.classList.remove('drag-over');fileLoad(e.dataTransfer.files[0]);});
  for(const d of $$('dialog'))d.addEventListener('click',e=>{if(e.target===d)d.close();});
 }
 document.addEventListener('DOMContentLoaded',init);
 window.AfterframeCatalog={
+  isSaved:raw=>Boolean(films.find(f=>f.id===raw.id||(
+    normal(f.title)===normal(raw.title)&&f.year===raw.year&&f.type===raw.type))),
+  localMatches:term=>{
+    const q=normal(term).trim();
+    if(q.length<2)return '';
+    return films.filter(f=>normal([f.title,f.genre,f.year,...f.tags].join(' ')).includes(q))
+      .slice(0,7).map(card).join('');
+  },
+  openExplore:term=>openExplore(String(term||'')),
+  openExternal:async (item,push=true)=>{
+    const existing=films.find(f=>f.id===item.id||(
+      normal(f.title)===normal(item.title)&&f.year===item.year&&f.type===item.type));
+    if(existing){remoteSelection=null;showDetail(existing.id,push);return;}
+    remoteSelection={
+      id:item.id,title:item.title,year:item.year,type:item.type||'film',
+      genre:item.genre||'',description:item.description||'',source:item.source||'catalogo esterno',
+      sourceUrl:item.sourceUrl||'',originalTitle:item.originalTitle||'',backdrop:item.backdrop||'',
+      why:'',tags:[],scores:{emotion:0,comedy:0,action:0,romance:0,tension:0},
+      match:0,status:'watchlist',reaction:'unseen',rating:null,
+      favorite:false,notes:'',poster:item.poster||'',posterQuery:item.originalTitle||item.title,
+      links:[],duration:item.duration||'',country:'',warnings:'',featured:false
+    };
+    showDetail(item.id,push);
+    if(/^tmdb-(movie|tv)-\d+$/.test(item.id) && window.EmotecaExplorer?.detail){
+      const id=item.id;
+      const enriched=await window.EmotecaExplorer.detail(id);
+      if(remoteSelection?.id===id && enriched){
+        remoteSelection={...remoteSelection,...enriched};
+        if(detailId===id && !$('#detail-screen').hidden)showDetail(id,false);
+      }
+    }
+  },
   addExternal:async raw=>{
     const film=validateFilm(raw);
     const existing=films.find(x=>x.id===film.id||

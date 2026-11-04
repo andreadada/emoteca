@@ -17,16 +17,28 @@ jobs:
         run: |
           npm install --no-save playwright
           npx playwright install chromium --with-deps
-      - name: Serve static Emoteca app
+      - name: Build production Docker container (Nginx + catalog API)
+        run: docker build -t emoteca-catalog-test .
+      - name: Serve production image without TMDB credentials
         run: |
-          python3 -m http.server 8000 --bind 127.0.0.1 > /tmp/emoteca-server.log 2>&1 &
-          echo $! > /tmp/emoteca-server.pid
-          for i in $(seq 1 30); do
+          docker run --name emoteca-catalog-test -d -p 127.0.0.1:8000:80 emoteca-catalog-test
+          for i in $(seq 1 45); do
             curl -fsS http://127.0.0.1:8000/index.html >/dev/null && break
             sleep 1
           done
+          for i in $(seq 1 45); do
+            if curl -fsS http://127.0.0.1:8000/api/catalog/status; then
+              exit 0
+            fi
+            sleep 1
+          done
+          docker logs emoteca-catalog-test
+          exit 1
       - name: Run browser flows and capture screenshots
         run: node tests/ui-e2e.mjs
+      - name: Show Docker logs on failure
+        if: failure()
+        run: docker logs emoteca-catalog-test || true
       - name: Upload design review screenshots
         if: always()
         uses: actions/upload-artifact@v4
