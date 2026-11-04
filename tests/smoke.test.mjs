@@ -2,11 +2,13 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync, existsSync } from 'node:fs';
 import { Script, createContext } from 'node:vm';
+import { execFileSync } from 'node:child_process';
+import { fileURLToPath } from 'node:url';
 
 const read = (file) => readFileSync(new URL('../' + file, import.meta.url), 'utf8');
 
 test('All browser scripts parse as JavaScript', () => {
-  for (const file of ['js/data.js', 'js/db.js', 'js/app.js', 'js/remote-catalog.js', 'server/catalog-api.mjs']) {
+  for (const file of ['js/data.js', 'js/db.js', 'js/app.js', 'js/remote-catalog.js']) {
     assert.doesNotThrow(() => new Script(read(file), { filename: file }));
   }
 });
@@ -30,6 +32,18 @@ test('App loads the explorer and cinematic stylesheet after core assets', () => 
 
 });
 
+test('Secure catalog API parses as ES module', () => {
+  const file = fileURLToPath(new URL('../server/catalog-api.mjs', import.meta.url));
+  assert.doesNotThrow(() => execFileSync(process.execPath, ['--check', file]));
+  const api = read('server/catalog-api.mjs');
+  assert.ok(api.includes('process.env.TMDB_READ_TOKEN'));
+  assert.ok(!api.includes('localStorage'));
+  assert.ok(api.includes('/api/catalog/search'));
+  assert.ok(api.includes('/api/catalog/discover'));
+  assert.ok(api.includes('/api/catalog/detail'));
+  assert.ok(api.includes('/api/catalog/poster'));
+});
+
 test('Semantic architecture replaces the old dashboard UI', () => {
   const html = read('index.html');
   const app = read('js/app.js');
@@ -45,6 +59,7 @@ test('Semantic architecture replaces the old dashboard UI', () => {
   assert.ok(!html.includes('styles-premium.css'), 'Old override CSS must no longer be loaded');
   assert.ok(app.includes('function renderFeatured()'), 'Featured movie is data-driven');
   assert.ok(app.includes('function renderRail()'), 'Curated reel is data-driven');
+  assert.ok(app.includes('sessionStorage.getItem'), 'Recommendation should vary per visit');
   assert.ok(app.includes('class="film-cover"'), 'New card architecture is in the renderer');
   assert.ok(app.includes('class="detail-hero"'), 'Detail view must have its own hierarchy');
   assert.ok(app.includes('detail-screen'), 'Film detail page must be routed');
