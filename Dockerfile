@@ -1,6 +1,6 @@
 FROM nginx:stable-alpine
 RUN apk add --no-cache nodejs npm
-COPY index.html styles-cinema.css styles-reframe.css /usr/share/nginx/html/
+COPY index.html styles-cinema.css styles-reframe.css styles-personalization.css /usr/share/nginx/html/
 COPY js /usr/share/nginx/html/js
 COPY assets /usr/share/nginx/html/assets
 COPY examples /usr/share/nginx/html/examples
