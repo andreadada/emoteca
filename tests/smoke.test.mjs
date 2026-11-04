@@ -21,6 +21,10 @@ test('App loads the explorer and cinematic stylesheet after core assets', () => 
     assert.ok(html.includes('id="' + id + '"'), 'Missing source control ' + id);
   }
   assert.ok(html.indexOf('js/app.js') < html.indexOf('js/remote-catalog.js'));
+  assert.ok(html.includes('data-action="add"'), 'Manual entry must remain accessible');
+  assert.ok(html.includes('This product uses the TMDB API but is not endorsed or certified by TMDB.'));
+  assert.ok(html.includes('blue_square_2-'), 'TMDB attribution must contain approved logo');
+
 });
 
 test('Existing catalog validation supports source-imported films with unknown editorial scores', () => {
