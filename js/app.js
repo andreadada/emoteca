@@ -159,8 +159,69 @@ async function openExplore(term='',updateHistory=true){
  window.EmotecaExplorer?.search?.(typed);
  if(first)window.scrollTo({top:0,behavior:'auto'});
 }
-async function store(next,notify){await CatalogDB.write(next);films=next;render();if(notify)toast(notify);}
-async function changeFilm(id,change){const next=films.map(f=>f.id===id?{...f,...change,updatedAt:new Date().toISOString()}:f);await store(next);}
+let writeQueue=Promise.resolve();
+function store(nextOrUpdater,notify,options={}){
+ const operation=async()=>{
+   const next=typeof nextOrUpdater==='function'?nextOrUpdater(films):nextOrUpdater;
+   if(next===films)return;
+   await CatalogDB.write(next);
+   films=next;
+   if(options.background){
+     // Do not close the film page or overwrite a note being typed.
+     if(!$('#detail-screen').hidden){/* Refresh on the next navigation. */}
+     else if(view==='explore')window.EmotecaExplorer?.refreshSaved?.();
+     else render();
+   }else render();
+   if(notify)toast(notify);
+ };
+ const pending=writeQueue.then(operation,operation);
+ writeQueue=pending.catch(()=>{});
+ return pending;
+}
+async function attachCatalogRecord(localId,remote,seed=null){
+ if(!/^tmdb-(movie|tv)-[1-9]\d*$/.test(remote?.id||''))return false;
+ let updated=false;
+ await store(current=>{
+   const original=current.find(f=>f.id===localId);
+   if(!original || original.year!==remote.year ||
+      window.EmotecaIdentity.mediaOf(original)!==window.EmotecaIdentity.mediaOf(remote))
+     return current;
+   const existing=current.find(f=>f.id!==localId&&
+     window.EmotecaIdentity.canonical(f)===remote.id);
+   if(existing)return current;
+   const merged=window.EmotecaIdentity.enrichSaved(original,remote,seed);
+   if(!merged)return current;
+   updated=true;
+   return current.map(f=>f.id===localId?validateFilm(merged):f);
+ },null,{background:true});
+ return updated;
+}
+async function syncSeedCatalog(){
+ const explorer=window.EmotecaExplorer;
+ if(!explorer?.isEnabled?.() || !explorer?.resolveSeed)return;
+ let networkFailures=0;
+ for(const seed of window.SEED_FILMS||[]){
+   const current=films.find(f=>f.id===seed.id);
+   if(!current||current.catalogId||current.year!==seed.year||
+     window.EmotecaIdentity.mediaOf(current)!==window.EmotecaIdentity.mediaOf(seed))continue;
+   // Do not silently re-link a seed that the user renamed into a different work.
+   if(current.title!==seed.title && current.posterQuery!==seed.posterQuery)continue;
+   try{
+     const remote=await explorer.resolveSeed(seed);
+     if(remote){
+       await attachCatalogRecord(seed.id,remote,seed);
+       networkFailures=0;
+     }
+   }catch{
+     if(++networkFailures>=3)break; // TMDB offline/rate-limited: retry next visit.
+   }
+   await new Promise(resolve=>setTimeout(resolve,750));
+ }
+}
+async function changeFilm(id,change){
+ await store(current=>current.map(f=>f.id===id?
+  {...f,...change,updatedAt:new Date().toISOString()}:f));
+}
 function openDialog(id){const d=$('#'+id);if(!d.open)d.showModal();}
 function closeDialog(id){const d=$('#'+id);if(d.open)d.close();}
 function streaming(f){const q=encodeURIComponent(f.title),search=encodeURIComponent(f.posterQuery||f.title);
@@ -219,6 +280,7 @@ function showDetail(id,push=true){
     ${f.description?`<p class="detail-description">${esc(f.description)}</p>`:'<p class="detail-description">La fonte non fornisce una sinossi per questo titolo.</p>'}
     <div class="detail-actions">${heroButtons}</div>
     ${saved&&f.why?`<p class="detail-why">${esc(f.why)}</p>`:''}
+    ${saved&&f.catalogId&&f.catalogSource?`<p class="detail-origin">Metadati collegati a ${esc(f.catalogSource)} · Diario personale conservato</p>`:''}
     ${!saved?`<p class="detail-origin">Scheda da ${esc(f.source||'catalogo esterno')}</p>`:''}
   </div>
  </div>
@@ -258,11 +320,11 @@ function importShape(input){
  if(input.id&&input.title)return {mode:'ops',operations:[{op:'upsert',film:input}]};
  throw Error('Formato non riconosciuto. Usa {operations:[...]}, {op:"update",...} o {films:[...]} per sostituzione completa.');
 }
-const ALLOWED=new Set(['id','title','year','type','genre','description','why','tags','scores','match','status','reaction','rating','favorite','notes','poster','posterQuery','links','duration','country','warnings','featured','createdAt','updatedAt']);
+const ALLOWED=new Set(['id','title','year','type','genre','description','why','tags','scores','match','status','reaction','rating','favorite','notes','poster','posterQuery','links','duration','country','warnings','featured','createdAt','updatedAt','catalogId','catalogSource','catalogTitle','backdrop']);
 function validPlainObject(o){return o&&typeof o==='object'&&!Array.isArray(o)&&Object.getPrototypeOf(o)===Object.prototype;}
 function validatePatch(obj){if(!validPlainObject(obj))throw Error('changes deve essere un oggetto.');for(const k of Object.keys(obj)){if(!ALLOWED.has(k))throw Error(`Campo non ammesso: ${k}`);if(k==='scores'){if(!validPlainObject(obj.scores))throw Error('scores deve essere un oggetto.');for(const s of Object.keys(obj.scores))if(!Object.hasOwn(scoreNames,s))throw Error('Score sconosciuto: '+s);}}}
 function validateFilm(raw){validatePatch(raw);
- const defaults={genre:'',description:'',why:'',tags:[],scores:{emotion:3,comedy:1,action:2,romance:1,tension:2},match:75,status:'watchlist',reaction:'unseen',rating:null,favorite:false,notes:'',poster:'',posterQuery:'',links:[],duration:'',country:'',warnings:'',featured:false};
+ const defaults={genre:'',description:'',why:'',tags:[],scores:{emotion:3,comedy:1,action:2,romance:1,tension:2},match:75,status:'watchlist',reaction:'unseen',rating:null,favorite:false,notes:'',poster:'',posterQuery:'',links:[],duration:'',country:'',warnings:'',featured:false,catalogId:'',catalogSource:'',catalogTitle:'',backdrop:''};
  const f={...defaults,...raw,scores:{...defaults.scores,...raw.scores}};
  if(typeof f.id!=='string'||!/^[a-z0-9][a-z0-9-]{0,89}$/.test(f.id))throw Error('ID non valido: solo lettere minuscole, numeri e trattini (max 90).');
  if(typeof f.title!=='string'||!f.title.trim()||f.title.length>180)throw Error('Il titolo è obbligatorio (max 180 caratteri).');
@@ -274,8 +336,13 @@ function validateFilm(raw){validatePatch(raw);
  if(!Object.hasOwn(reactNames,f.reaction))throw Error('reaction non valida.');
  if(f.rating!==null&&(!Number.isInteger(f.rating)||f.rating<0||f.rating>10))throw Error('rating deve essere null o un intero 0–10.');
  if(typeof f.favorite!=='boolean'||typeof f.featured!=='boolean')throw Error('favorite e featured devono essere booleani.');
- for(const k of ['genre','description','why','notes','poster','posterQuery','duration','country','warnings'])if(typeof f[k]!=='string'||f[k].length>(k==='notes'?3000:k==='description'?900:400))throw Error(`Campo ${k} non valido o troppo lungo.`);
+ for(const k of ['genre','description','why','notes','poster','posterQuery','duration','country','warnings','catalogId','catalogSource','catalogTitle','backdrop'])if(typeof f[k]!=='string'||f[k].length>(k==='notes'?3000:k==='description'?900:400))throw Error(`Campo ${k} non valido o troppo lungo.`);
  if(f.poster&&!safeUrl(f.poster))throw Error('La copertina deve avere URL http o https.');
+ if(f.backdrop&&!safeUrl(f.backdrop))throw Error('Lo sfondo deve avere URL http o https.');
+ if(f.catalogId&&!/^(?:tmdb-(?:movie|tv)-[1-9]\d*|wikidata-q[1-9]\d*)$/.test(f.catalogId))throw Error('Identificativo catalogo non valido.');
+ if(f.catalogId&&window.EmotecaIdentity?.mediaOf(f)!==window.EmotecaIdentity?.mediaOf({id:f.catalogId,type:f.catalogId.startsWith('tmdb-tv-')?'serie':'film'})) {
+   if(f.catalogId.startsWith('tmdb-'))throw Error('Il formato non corrisponde al catalogo.');
+ }
  if(!Array.isArray(f.tags)||f.tags.length>30||f.tags.some(t=>typeof t!=='string'||t.length>65))throw Error('tags deve essere una lista di massimo 30 stringhe (max 65 caratteri).');
  if(!Array.isArray(f.links)||f.links.length>20||f.links.some(l=>!validPlainObject(l)||typeof l.name!=='string'||l.name.length>80||!safeUrl(l.url)))throw Error('links deve essere una lista di {name, url:https://...}.');
  if(f.createdAt&&typeof f.createdAt!=='string'||f.updatedAt&&typeof f.updatedAt!=='string')throw Error('Date non valide.');
@@ -478,7 +545,12 @@ async function init(){
  }
  await routeFromLocation();
  window.EmotecaExplorer?.init?.().then(()=>{
-   if(window.EmotecaExplorer?.isEnabled?.()){posterTried.clear();observePosters();}
+   if(window.EmotecaExplorer?.isEnabled?.()){
+     posterTried.clear();observePosters();
+     // Link preloaded legacy IDs to official catalog identities, progressively.
+     // Never overwrite personal history and never block the initial render.
+     setTimeout(()=>{syncSeedCatalog().catch(()=>{});},1200);
+   }
  }).catch(()=>{});
  $('#search').addEventListener('input',e=>{
  const term=e.target.value.trim();
@@ -503,8 +575,8 @@ async function init(){
 }
 document.addEventListener('DOMContentLoaded',init);
 window.AfterframeCatalog={
-  isSaved:raw=>Boolean(films.find(f=>f.id===raw.id||(
-    normal(f.title)===normal(raw.title)&&f.year===raw.year&&f.type===raw.type))),
+  findSaved:raw=>window.EmotecaIdentity.findSaved(films,raw),
+  isSaved:raw=>Boolean(window.EmotecaIdentity.findSaved(films,raw)),
   localMatches:term=>{
     const q=normal(term).trim();
     if(q.length<2)return '';
@@ -513,9 +585,18 @@ window.AfterframeCatalog={
   },
   openExplore:term=>openExplore(String(term||'')),
   openExternal:async (item,push=true)=>{
-    const existing=films.find(f=>f.id===item.id||(
-      normal(f.title)===normal(item.title)&&f.year===item.year&&f.type===item.type));
-    if(existing){remoteSelection=null;showDetail(existing.id,push);return;}
+    const existing=window.EmotecaIdentity.findSaved(films,item);
+    if(existing){
+      remoteSelection=null;
+      // Associate the canonical catalog entry with the preloaded local film,
+      // but preserve its ID and personal diary.
+      if(item.provider==='tmdb' && !existing.catalogId){
+        await attachCatalogRecord(existing.id,item,
+          (window.SEED_FILMS||[]).find(seed=>seed.id===existing.id));
+      }
+      showDetail(existing.id,push);
+      return;
+    }
     remoteSelection={
       id:item.id,title:item.title,year:item.year,type:item.type||'film',
       genre:item.genre||'',description:item.description||'',source:item.source||'catalogo esterno',
@@ -537,10 +618,24 @@ window.AfterframeCatalog={
   },
   addExternal:async raw=>{
     const film=validateFilm(raw);
-    const existing=films.find(x=>x.id===film.id||
-      (normal(x.title)===normal(film.title)&&x.year===film.year&&x.type===film.type));
-    if(existing)return {added:false,id:existing.id};
-    await store([film,...films],'Titolo aggiunto alla tua libreria.');
+    const existing=window.EmotecaIdentity.findSaved(films,film);
+    if(existing){
+      if(film.catalogId?.startsWith('tmdb-') && !existing.catalogId){
+        const remote={
+          id:film.catalogId,provider:'tmdb',title:film.catalogTitle||film.title,
+          year:film.year,type:film.type,poster:film.poster,backdrop:film.backdrop,
+          description:film.description,genre:film.genre,duration:film.duration,
+          sourceUrl:film.links?.find(link=>link.url?.startsWith('https://www.themoviedb.org/'))?.url||''
+        };
+        await attachCatalogRecord(existing.id,remote,
+          (window.SEED_FILMS||[]).find(seed=>seed.id===existing.id));
+      }
+      return {added:false,id:existing.id};
+    }
+    await store(current=>{
+      if(window.EmotecaIdentity.findSaved(current,film))return current;
+      return [film,...current];
+    },'Titolo aggiunto alla tua libreria.');
     return {added:true,id:film.id};
   }
 };

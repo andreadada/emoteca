@@ -10,6 +10,12 @@ Una libreria cinematografica personale in HTML, CSS e JavaScript puro. Parte da 
 
 **Nota di stato (4/11/2026):** codice v3 e CI verificati su GitHub; **deploy reale, dominio e token TMDB di produzione non verificati**. Non confondere i test con provider simulato con una prova live.
 
+## Collegamento fra i titoli iniziali e il catalogo mondiale
+
+I **34 titoli precompilati** rimangono nella libreria personale con i loro stati di visione e le note. Quando cerchi una di queste opere in **Tutti i film**, Emoteca la riconosce tramite l'identità canonica (`catalogId`) oppure titolo/anno/formato, anche quando TMDB cataloga come **serie TV** un titolo che Emoteca classifica come **anime**. Nel catalogo compare quindi **Già visto**, **Da guardare** o **In corso** e il titolo non viene importato due volte.
+
+Con il proxy TMDB attivo, le schede iniziali vengono associate progressivamente alle voci globali e arricchite con locandina, descrizione e metadati ufficiali, **senza sostituire voti, reazioni, preferiti o note**. Le associazioni incerte non sono forzate. Dettagli: [Seed → catalogo globale](docs/SEED-CATALOG-LINKING.md).
+
 ## Emoteca 3.0 — ricerca mondiale e pagine film
 
 **La ricerca principale è globale.** Digitando almeno due caratteri nella barra superiore si apre la pagina **Tutti i film**, non un filtro limitato ai 34 titoli di partenza. La pagina mostra separatamente i titoli già salvati e i risultati del catalogo esterno. Ogni risultato può aprire una pagina film **anche prima di essere salvato**; da lì è possibile aggiungerlo alla libreria per registrare voto, stato e note.
