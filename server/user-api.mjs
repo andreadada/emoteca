@@ -17,6 +17,18 @@ const listSafe=/^[a-z0-9][a-z0-9-]{0,63}$/;
 const defaultLists=()=>[{id:'mia-lista',name:'La mia lista',filmIds:[]}];
 let poolPromise;
 let keyCache={keys:[],expires:0};
+const loginAttempts=new Map();
+function checkLoginRate(req){
+  const key=String(req.headers['x-real-ip']||req.socket.remoteAddress||'anonymous').slice(0,120);
+  const now=Date.now();
+  const current=loginAttempts.get(key);
+  const record=!current||current.reset<now?{count:0,reset:now+15*60*1000}:current;
+  record.count++;loginAttempts.set(key,record);
+  if(loginAttempts.size>8000){
+    for(const [ip,value] of loginAttempts)if(value.reset<now)loginAttempts.delete(ip);
+  }
+  return record.count<=15;
+}
 
 function json(res,status,body,headers={}){
   res.writeHead(status,{
@@ -92,8 +104,8 @@ async function database(){
   }
   return poolPromise;
 }
-async function googlePublicKeys(){
-  if(keyCache.expires>Date.now()&&keyCache.keys.length)return keyCache.keys;
+async function googlePublicKeys(force=false){
+  if(!force&&keyCache.expires>Date.now()&&keyCache.keys.length)return keyCache.keys;
   const response=await fetch('https://www.googleapis.com/oauth2/v3/certs',{signal:AbortSignal.timeout(7000)});
   if(!response.ok)throw Error('Chiavi Google temporaneamente non disponibili.');
   const body=await response.json();
@@ -113,7 +125,8 @@ async function verifyGoogle(token){
     payload=JSON.parse(Buffer.from(parts[1],'base64url').toString('utf8'));
   }catch{throw Error('Credenziale Google non valida.');}
   if(header.alg!=='RS256'||typeof header.kid!=='string')throw Error('Firma Google non valida.');
-  const key=(await googlePublicKeys()).find(k=>k.kid===header.kid);
+  let key=(await googlePublicKeys()).find(k=>k.kid===header.kid);
+  if(!key)key=(await googlePublicKeys(true)).find(k=>k.kid===header.kid);
   if(!key)throw Error('Chiave Google non riconosciuta.');
   const verified=verifySignature('RSA-SHA256',
     Buffer.from(parts[0]+'.'+parts[1]),createPublicKey({key,format:'jwk'}),
@@ -178,6 +191,7 @@ export async function handleUser(req,res,url){
       return true;
     }
     if(url.pathname==='/api/user/login'&&req.method==='POST'){
+      if(!checkLoginRate(req)){json(res,429,{error:'Troppi tentativi di accesso: riprova più tardi.'});return true;}
       if(!csrfOk(req)){json(res,403,{error:'Controllo sicurezza non riuscito.'});return true;}
       const data=await readJson(req,16000);
       const user=await verifyGoogle(data.credential);
@@ -199,6 +213,17 @@ export async function handleUser(req,res,url){
       const token=cookies(req)[cookieSession];
       if(token)await db.query('DELETE FROM emoteca_sessions WHERE token_hash=$1',[hash(token)]);
       json(res,200,{ok:true},{'Set-Cookie':cookie(cookieSession,'',{maxAge:0})});
+      return true;
+    }
+    if(url.pathname==='/api/user/delete'&&req.method==='POST'){
+      if(!csrfOk(req)){json(res,403,{error:'Controllo sicurezza non riuscito.'});return true;}
+      const user=await currentUser(req,db);
+      if(!user){json(res,401,{error:'Accedi prima di eliminare l’account.'});return true;}
+      const body=await readJson(req,1000);
+      if(body.confirm!=='ELIMINA'){json(res,400,{error:'Conferma non valida.'});return true;}
+      // This deletes only the authenticated Google user's records, not browser data.
+      await db.query('DELETE FROM emoteca_users WHERE google_sub=$1',[user.google_sub]);
+      json(res,200,{deleted:true},{'Set-Cookie':cookie(cookieSession,'',{maxAge:0})});
       return true;
     }
     if(url.pathname==='/api/user/data'&&['GET','PUT'].includes(req.method)){
