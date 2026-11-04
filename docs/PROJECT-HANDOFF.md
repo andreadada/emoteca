@@ -109,6 +109,14 @@ Nota legale: TMDB richiede attribuzione ed ha un utilizzo gratuito previsto per 
 
 **Stato:** fix incluso nella PR del branch `fix/poster-image-layout-overflow`; controllare esito CI/merge sul repository prima di assumere che sia in `main`. **Redeploy Coolify e verifica sul dominio finale non automatici né confermati.** Dopo il deploy ricaricare `https://film.ddone.it` e controllare homepage, poster, CTA, reel e browser mobile; se necessario fare hard refresh. Non cancellare cache IndexedDB né dati personali per risolvere un bug CSS.
 
+## Integrazione libreria seed → catalogo globale (4 novembre 2026)
+
+**Problema:** i 34 titoli precompilati hanno ID locali indipendenti da TMDB/Wikidata. In `Tutti i film`, quindi, lo stesso film poteva comparire come non salvato e, per gli anime, il confronto `anime` ≠ `serie` portava a doppioni. L'utente ha richiesto che le opere precompilate siano riconosciute come voci del catalogo mondiale, con dati ufficiali, senza perdere la propria cronologia.
+
+**Soluzione in branch `feat/link-seed-library-to-world-catalog`:** nuovo identity layer `js/catalog-identity.js`, campo opzionale `catalogId`/fonte sui record locali, matching per media/anno/titolo o ID canonico, aggiornamento progressivo dei metadati dei seed da TMDB e badge del loro stato nella ricerca globale. La scheda globale già salvata apre la scheda privata esistente, senza duplicare. Voti, reazioni, note, preferiti e ID locali **non** vengono cambiati. Le opere non verificabili non vengono collegate artificialmente. Vedi [SEED-CATALOG-LINKING.md](SEED-CATALOG-LINKING.md).
+
+**Controlli:** test Node e browser TMDB simulati aggiunti; verificare CI e PR prima di dare per acquisito il merge. Dopo redeploy Coolify sul dominio `https://film.ddone.it`, testare almeno Code Geass e Your Name per il riconoscimento, e un film non salvato per l'assenza di falsi positivi. Confermare eventuali titoli ancora privi di `catalogId` con dati reali. La presenza del token TMDB reale in Coolify non è verificata da questa sessione.
+
 ## 4. Cosa fare ADESSO — roadmap prioritaria
 
 ### P0 — Portare online e validare
