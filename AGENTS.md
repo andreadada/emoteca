@@ -29,4 +29,4 @@
 
 ## Prossima azione
 
-Partire dal **P0** di [docs/PROJECT-HANDOFF.md](docs/PROJECT-HANDOFF.md): deployment su Coolify, verifica della variabile TMDB e test reale sul dominio pubblicato. **Non risultano verificati il dominio finale, il runtime Coolify e la validità del token di produzione.**
+Partire dal **P0** di [docs/PROJECT-HANDOFF.md](docs/PROJECT-HANDOFF.md): redeploy da `main` della funzione **Le mie liste** (PR #9), verifica non distruttiva della migrazione e dei backup, quindi controllo TMDB e del dominio pubblicato. **Non risultano verificati il dominio finale, il runtime Coolify e la validità del token di produzione.**
