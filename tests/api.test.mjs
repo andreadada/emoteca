@@ -37,7 +37,10 @@ const fixture = createServer((req, res) => {
   } else if (path === '/3/search/tv') {
     body = { page:1,total_pages:1,total_results:1,results:[series] };
   } else if (path === '/3/movie/123') {
-    body = { ...movie, genres: [{ name:'Drammatico' }], runtime: 173 };
+    body = { ...movie, genres: [{ name:'Drammatico' }], runtime: 173,
+      credits:{cast:[{name:'Attore Test',character:'Protagonista'}],
+        crew:[{name:'Regista Test',job:'Director'},{name:'Scrittore Test',job:'Screenplay'}]},
+      videos:{results:[{site:'YouTube',type:'Trailer',official:true,key:'abcdefghijk'}]}};
   } else {
     res.writeHead(404, { 'Content-Type': 'application/json' });
     return void res.end(JSON.stringify({ error:'missing fixture' }));
@@ -96,6 +99,13 @@ test('TMDB proxy normalizes search, discovery, details and posters with a server
   const detail = await (await fetch(base + '/api/catalog/detail?type=movie&id=123')).json();
   assert.equal(detail.item.duration,'173 min');
   assert.equal(detail.item.genre,'Drammatico');
+  assert.equal(detail.item.backdrop,'https://image.tmdb.org/t/p/w1280/moviebackdrop.jpg');
+  assert.deepEqual(detail.item.directors,['Regista Test']);
+  assert.deepEqual(detail.item.writers,['Scrittore Test']);
+  assert.deepEqual(detail.item.cast,[{name:'Attore Test',role:'Protagonista'}]);
+  assert.equal(detail.item.trailerUrl,'https://www.youtube.com/watch?v=abcdefghijk');
+  assert.ok(fixtureRequests.some(x=>x.pathname==='/3/movie/123'&&
+    x.searchParams.get('append_to_response')==='credits,videos'));
 
   const poster = await (await fetch(base + '/api/catalog/poster?title=La%20dolce%20vita&year=1960&type=movie')).json();
   assert.equal(poster.item?.poster,'https://image.tmdb.org/t/p/w500/movieposter.jpg');
