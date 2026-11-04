@@ -86,6 +86,47 @@ await scenario('desktop movie and diary route', { width: 1440, height: 900 }, as
   await page.locator('#edit-dialog [data-close="edit-dialog"]').first().click();
 });
 
+await scenario('remote poster cannot cover homepage layout', { width: 1440, height: 900 }, async page => {
+  // Reproduce what happens after Coolify receives a working TMDB token:
+  // metadata arrives after the initial rendering and updates existing covers.
+  const pixel = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAIAAAADCAIAAAA2iEnWAAAAFElEQVR4nGO0iWpiYGBgYmBgQFAAFNYBHn6EXKoAAAAASUVORK5CYII=','base64');
+  await page.route('**/api/catalog/status', route => route.fulfill({
+    status: 200, contentType: 'application/json',
+    body: JSON.stringify({ provider: 'tmdb', enabled: true, message: 'Ready' })
+  }));
+  await page.route('**/api/catalog/poster?**', route => route.fulfill({
+    status: 200, contentType: 'application/json',
+    body: JSON.stringify({ item: { poster: 'https://image.tmdb.org/t/p/w500/emoteca-test.png' } })
+  }));
+  await page.route('https://image.tmdb.org/t/p/**', route => route.fulfill({
+    status: 200, contentType: 'image/png', body: pixel
+  }));
+  await page.reload({ waitUntil: 'domcontentloaded' });
+  await page.waitForFunction(() =>
+    document.querySelector('.feature-poster > .poster-image[src*="emoteca-test.png"]') !== null,
+    null, { timeout: 18000 });
+  await page.waitForFunction(() =>
+    document.querySelector('#editorial-rail .poster-wrap > .poster-image[src*="emoteca-test.png"]') !== null,
+    null, { timeout: 18000 });
+
+  const layout = await page.evaluate(() => {
+    const hero = document.querySelector('#hero').getBoundingClientRect();
+    const heroPoster = document.querySelector('.feature-poster').getBoundingClientRect();
+    const strayImages = [...document.querySelectorAll('img.poster-image')]
+      .filter(image => !image.parentElement.matches('.poster-wrap, .feature-poster, .detail-poster'))
+      .map(image => image.parentElement.tagName + '.' + image.parentElement.className);
+    return { heroHeight:hero.height, heroPosterWidth:heroPoster.width,
+      strayImages, heroActionImages:document.querySelectorAll('.feature-actions img').length,
+      cardTitleImages:document.querySelectorAll('.card-name img').length };
+  });
+  assert.deepEqual(layout.strayImages, [], 'Remote image must only appear inside artwork slots');
+  assert.equal(layout.heroActionImages, 0, 'Never append a cover inside the hero CTA');
+  assert.equal(layout.cardTitleImages, 0, 'Never append a cover inside a film title button');
+  assert.ok(layout.heroHeight < 760, 'The hero should not grow to full-page dimensions');
+  assert.ok(layout.heroPosterWidth <= 350, 'Artwork width must stay constrained by its poster wrapper');
+  await page.screenshot({ path: 'ui-screenshots/desktop-remote-poster-fixed.png', fullPage: true });
+});
+
 await scenario('global search fallback, save and open new film', { width: 1440, height: 900 }, async page => {
   await wikidataStub(page);
   await page.locator('.nav-link[data-view="explore"]').click();

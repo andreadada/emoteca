@@ -127,7 +127,11 @@ button, a { touch-action: manipulation; -webkit-tap-highlight-color: rgba(201,17
 .poster-wrap::after { content:'';position:absolute;inset:0;border:1px solid #ffffff16;pointer-events:none;z-index:2;transition:border-color .18s ease; }
 .poster-wrap:hover::after { border-color:#e4c5a0; }
 .poster-wrap:focus-visible { z-index:1;outline-offset:4px; }
-.poster-image { display:block;position:absolute;inset:0;width:100%;height:100%;object-fit:cover;z-index:1;transition:transform .28s ease; }
+/* Artwork styling belongs to explicit poster containers only. This prevents an
+   accidentally inserted image from absolutely positioning over whole sections. */
+.poster-wrap > .poster-image,
+.feature-poster > .poster-image,
+.detail-poster > .poster-image { display:block;position:absolute;inset:0;width:100%;height:100%;object-fit:cover;z-index:1;transition:transform .28s ease; }
 .poster-wrap:hover .poster-image { transform:scale(1.035); }
 .poster-fallback { position:absolute;inset:0;display:flex;flex-direction:column;justify-content:end;gap:12px;padding:16px;background:#393632;overflow:hidden; }
 .poster-fallback strong { font:normal clamp(21px,2.4vw,35px)/1.01 var(--display);letter-spacing:-.3px;overflow-wrap:anywhere;color:#f3ece2; }

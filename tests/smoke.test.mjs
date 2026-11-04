@@ -123,6 +123,20 @@ test('Source integration is opt-in and does not include hard-coded TMDB credenti
   assert.ok(!/eyJhbGciOi|sk-[A-Za-z0-9]{16}/.test(remote), 'Unexpected embedded credential');
 });
 
+test('Remote poster refresh only modifies image slots, never action buttons', () => {
+  const app = read('js/app.js');
+  const css = read('styles-cinema.css');
+  const injected = app.slice(app.indexOf('// Only actual artwork slots'), app.indexOf('image.onerror=()=>', app.indexOf('// Only actual artwork slots')));
+  assert.ok(injected.includes("document.querySelectorAll('.poster-wrap[data-open], .feature-poster[data-poster], .detail-poster[data-poster]')"));
+  assert.ok(!injected.includes("'[data-open], [data-poster]'"), 'Generic open buttons must never receive images');
+  assert.ok(css.includes('.poster-wrap > .poster-image'), 'Images must be scoped to artwork containers');
+  assert.ok(css.includes('.feature-poster > .poster-image'));
+  assert.ok(css.includes('.detail-poster > .poster-image'));
+  const html = read('index.html');
+  assert.ok(html.includes('styles-cinema.css?v=20261104-posterfix'));
+  assert.ok(html.includes('js/app.js?v=20261104-posterfix'));
+});
+
 test('Preserve original IndexedDB name and JSON backup format', () => {
   assert.ok(read('js/db.js').includes('afterframe-catalog-v1'));
   assert.ok(read('js/app.js').includes("format:'afterframe-catalog'"));
