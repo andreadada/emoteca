@@ -5,6 +5,7 @@
  * Node 22+, no third-party dependencies.
  */
 import http from 'node:http';
+import {handleUser} from './user-api.mjs';
 
 const TOKEN = (process.env.TMDB_READ_TOKEN || '').trim().replace(/^Bearer\s+/i, '');
 const PORT = Number(process.env.CATALOG_PORT || 8787);
@@ -177,6 +178,7 @@ async function browse(type,genres,page) {
 }
 async function handle(req, res) {
   const url = new URL(req.url || '/', 'http://localhost');
+  if (await handleUser(req,res,url)) return;
   if (req.method !== 'GET') return respond(res, 405, { error: 'Metodo non consentito.' });
   if (url.pathname === '/api/catalog/status') {
     return respond(res, 200, { provider: TOKEN ? 'tmdb' : 'wikidata', enabled: Boolean(TOKEN),
