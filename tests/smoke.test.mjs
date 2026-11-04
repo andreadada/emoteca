@@ -15,7 +15,7 @@ test('All browser scripts parse as JavaScript', () => {
 
 test('App loads the explorer and cinematic stylesheet after core assets', () => {
   const html = read('index.html');
-  for (const file of ['styles-cinema.css', 'js/data.js', 'js/db.js', 'js/catalog-identity.js', 'js/lists.js', 'js/app.js', 'js/remote-catalog.js']) {
+  for (const file of ['styles-cinema.css', 'styles-reframe.css', 'js/data.js', 'js/db.js', 'js/catalog-identity.js', 'js/lists.js', 'js/app.js', 'js/remote-catalog.js']) {
     assert.ok(existsSync(new URL('../' + file, import.meta.url)), 'Missing ' + file);
     assert.ok(html.includes(file), 'HTML does not include ' + file);
   }
@@ -32,6 +32,36 @@ test('App loads the explorer and cinematic stylesheet after core assets', () => 
   assert.ok(!html.includes('id="detail-dialog"'), 'Movie details must be a separate page');
   assert.ok(!html.includes('id="source-dialog"'), 'Global search must not be a modal');
 
+});
+
+test('Cinema programme redesign is a user-centered screen system, not decorative slop', () => {
+  const html=read('index.html'),app=read('js/app.js');
+  const css=read('styles-reframe.css');
+  assert.ok(html.includes('styles-reframe.css?v=20261104-reframe1'));
+  assert.ok(html.indexOf('styles-cinema.css')<html.indexOf('styles-reframe.css'));
+  assert.ok(html.includes('data-view="discover" aria-current="page">Scopri'));
+  assert.ok(html.includes('data-view="explore">Catalogo'));
+  assert.ok(!html.includes('class="explore-button"'), 'Remove redundant Explore action');
+  assert.ok(html.indexOf('class="catalog-search-section"') < html.indexOf('class="catalog-filters"'),
+    'Global search must precede all additional filters');
+  assert.ok(app.includes("$('#collection-section').hidden=home"),
+    'Discovery should not repeat the entire personal collection below the recommendations');
+  assert.ok(app.includes("case'mark-feature-watched':"),'Recommendation supports rapid viewing entry');
+  assert.ok(app.includes("Hai visto tutto ciò che hai salvato."),'Provide a meaningful completion state');
+  for(const token of ['--ui-ground','--ui-ink','--ui-card','--ui-dark','--ui-accent',
+    '--motion-fast','--motion-regular','--motion-out']) {
+    assert.ok(css.includes(token),'Missing design token '+token);
+  }
+  assert.ok(css.includes('grid-template-columns:repeat(5,minmax(0,1fr))'));
+  assert.ok(css.includes('grid-template-columns:repeat(2,minmax(0,1fr))'));
+  assert.ok(css.includes('.theme-tags {')&&css.includes('flex-wrap:nowrap'),
+    'Theme filters should remain horizontal instead of wrapping into a wall');
+  assert.ok(css.includes('(prefers-reduced-motion:reduce)'),
+    'All motion must respect users with reduced-motion preference');
+  assert.ok(css.includes('(hover:hover) and (pointer:fine)'),
+    'Pointer hover artwork transitions must not affect touch users');
+  assert.ok(!css.includes('gsap')&&!css.includes('backdrop-filter:blur(28px)'),
+    'Avoid unnecessary animation dependencies and decorative effects');
 });
 
 test('Secure catalog API parses as ES module', () => {
