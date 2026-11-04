@@ -318,3 +318,51 @@
  .site-header .wordmark {min-width:0;}
  #detail-screen .detail-page-toolbar {padding-inline:0;}
 }
+
+
+/* Editorial credits, tied to real TMDB detail (never inferred). */
+.detail-film-extras {padding:34px clamp(30px,5vw,65px) 45px;
+  background:rgba(248,250,246,.96);border-top:1px solid var(--ui-line);}
+.detail-film-extras[hidden]{display:none!important;}
+.detail-extras-heading{display:flex;align-items:center;gap:24px;flex-wrap:wrap;margin-bottom:20px;}
+.detail-extras-heading>div:first-child{margin-right:auto;}
+.detail-extras-heading h3{font:500 clamp(28px,3vw,38px)/1.1 var(--display);
+  margin:5px 0 0;color:#234032;}
+.tmdb-score{display:flex;flex-direction:column;align-items:flex-end;gap:3px;}
+.tmdb-score strong{font-size:21px;font-weight:750;color:#2a4b36;}
+.tmdb-score strong span{font-size:13px;color:#758a78;margin-left:2px;}
+.tmdb-score small{font-size:11px;letter-spacing:.04em;color:#617762;}
+.detail-people{display:flex;gap:40px;flex-wrap:wrap;margin:14px 0 25px;}
+.detail-people p{display:flex;flex-direction:column;gap:5px;max-width:320px;margin:0;}
+.detail-people p>span{font-size:11px;font-weight:750;color:#7b917e;text-transform:uppercase;letter-spacing:.07em;}
+.detail-people p>strong{font-size:13px;color:#2d503c;font-weight:700;}
+.detail-cast h4{font-size:12px;color:#637a66;letter-spacing:.04em;margin:0 0 12px;font-weight:800;}
+.detail-cast-track{display:flex;gap:10px;overflow-x:auto;padding-bottom:12px;scrollbar-width:thin;}
+.detail-cast-person{background:#edf3eb;border:1px solid #dde6d8;border-radius:5px;
+  display:flex;flex-direction:column;min-width:156px;max-width:196px;gap:6px;padding:15px;}
+.detail-cast-person strong{font-size:13px;color:#2a4938;font-weight:750;line-height:1.45;}
+.detail-cast-person span{font-size:11px;color:#697f6a;line-height:1.5;}
+.film-trailer {min-width:140px;}
+:root[data-theme=dark] .detail-film-extras{background:rgba(16,24,25,.96);border-color:#3c5047;}
+:root[data-theme=dark] .detail-extras-heading h3,
+:root[data-theme=dark] .detail-people p>strong,
+:root[data-theme=dark] .detail-cast-person strong,
+:root[data-theme=dark] .tmdb-score strong{color:#f3efe5;}
+:root[data-theme=dark] .detail-people p>span,
+:root[data-theme=dark] .detail-cast h4,
+:root[data-theme=dark] .tmdb-score small,
+:root[data-theme=dark] .tmdb-score strong span{color:#aec2b1;}
+:root[data-theme=dark] .detail-cast-person{background:#202e2c;border-color:#3b4c44;}
+:root[data-theme=dark] .detail-cast-person span{color:#acbfb0;}
+@media(max-width:760px){
+ .detail-film-extras{padding:25px 24px 35px;}
+ .detail-people{gap:20px;}
+ .detail-cast-person{min-width:142px;}
+}
+@media(max-width:490px){
+ .detail-film-extras{padding:22px 15px 28px;}
+ .detail-extras-heading{gap:12px;align-items:start;}
+ .detail-extras-heading h3{font-size:29px;}
+ .film-trailer{width:100%;}
+ .tmdb-score{margin-left:auto;}
+}
