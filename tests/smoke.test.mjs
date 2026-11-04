@@ -32,18 +32,20 @@ test('Existing catalog validation supports source-imported films with unknown ed
   new Script(read('js/app.js')).runInContext(context);
   assert.ok(window.AfterframeTest);
   assert.ok(window.AfterframeCatalog);
-  const raw = {
+  const raw = new Script(`({
     id:'wikidata-q123456',title:'Film di prova',year:2021,type:'film',
     scores:{emotion:0,comedy:0,action:0,romance:0,tension:0},match:0,
     links:[{name:'Wikidata',url:'https://www.wikidata.org/wiki/Q123456'}]
-  };
+  })`).runInContext(context);
   const film = window.AfterframeTest.validateFilm(raw);
   assert.equal(film.status, 'watchlist');
   assert.equal(film.match, 0);
   assert.equal(film.rating, null);
   assert.equal(film.links[0].name, 'Wikidata');
   assert.equal(listeners[0][0], 'DOMContentLoaded');
-  assert.throws(() => window.AfterframeTest.validateFilm({...raw,poster:'javascript:alert(1)'}));
+  context.badFilm = raw;
+  const malicious = new Script("({...badFilm, poster:'javascript:alert(1)'})").runInContext(context);
+  assert.throws(() => window.AfterframeTest.validateFilm(malicious), /copertina/);
 });
 
 test('Source integration is opt-in and does not include hard-coded TMDB credentials', () => {
