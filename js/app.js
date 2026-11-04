@@ -135,12 +135,14 @@ function setView(v,updateHistory=true){
  $('#tag-filter').value='all';
  $('#sort-filter').value='match';sortFilter='match';
  if(updateHistory)history.pushState({view:v},'',v==='discover'?location.pathname:('#'+v));
+ document.title='Emoteca — La tua libreria di cinema';
  render();
  window.scrollTo({top:0,behavior:window.matchMedia('(prefers-reduced-motion: reduce)').matches?'auto':'smooth'});
 }
 async function openExplore(term='',updateHistory=true){
  const first=view!=='explore';
  view='explore';query='';
+ document.title='Tutti i film — Emoteca';
  $('#search').value=term;
  $('#catalog-query').value=term;
  if(updateHistory){
@@ -242,8 +244,8 @@ function openEdit(id){const f=films.find(x=>x.id===id);editFilmId=f?f.id:null;$(
  form.elements.tags.value=(data.tags||[]).join(', ');editSliders(data.scores);openDialog('edit-dialog');}
 function getFormFilm(){const f=$('#film-form').elements;const old=films.find(x=>x.id===editFilmId);const scores={};Object.keys(scoreNames).forEach(k=>scores[k]=Number(f['score-'+k].value));
  const obj={...(old||{}),id:f.id.value.trim(),title:f.title.value.trim(),year:Number(f.year.value),type:f.type.value,genre:f.genre.value.trim(),description:f.description.value.trim(),why:f.why.value.trim(),tags:f.tags.value.split(',').map(x=>x.trim()).filter(Boolean),poster:f.poster.value.trim(),posterQuery:f.posterQuery.value.trim(),duration:f.duration.value.trim(),match:Number(f.match.value),warnings:f.warnings.value.trim(),scores};return validateFilm(obj);}
-async function saveEdit(e){e.preventDefault();try{const film=getFormFilm();if(films.some(x=>x.id===film.id&&x.id!==editFilmId))throw Error('Esiste già un titolo con questo ID.');let next;if(editFilmId){next=films.map(x=>x.id===editFilmId?film:x);if(editFilmId!==film.id&&posterCache.has(editFilmId)){posterCache.delete(editFilmId);}}else{next=[film,...films];}await store(next,'Titolo salvato nel database locale.');closeDialog('edit-dialog');if(editFilmId&&detailId===editFilmId){closeDialog('detail-dialog');showDetail(film.id);}}catch(err){toast(err.message,true);}}
-async function deleteFilm(id){const f=films.find(x=>x.id===id);if(!f)return;if(!confirm(`Eliminare definitivamente "${f.title}" dalla libreria locale?`))return;try{await store(films.filter(x=>x.id!==id),'Titolo eliminato.');closeDialog('detail-dialog');}catch(e){toast(e.message,true);}}
+async function saveEdit(e){e.preventDefault();try{const film=getFormFilm();if(films.some(x=>x.id===film.id&&x.id!==editFilmId))throw Error('Esiste già un titolo con questo ID.');let next;if(editFilmId){next=films.map(x=>x.id===editFilmId?film:x);if(editFilmId!==film.id&&posterCache.has(editFilmId)){posterCache.delete(editFilmId);}}else{next=[film,...films];}await store(next,'Titolo salvato nel database locale.');closeDialog('edit-dialog');if(editFilmId&&detailId===editFilmId)showDetail(film.id,false);}catch(err){toast(err.message,true);}}
+async function deleteFilm(id){const f=films.find(x=>x.id===id);if(!f)return;if(!confirm(`Eliminare definitivamente "${f.title}" dalla libreria locale?`))return;try{await store(films.filter(x=>x.id!==id),'Titolo eliminato.');setView('all');}catch(e){toast(e.message,true);}}
 function downloadJson(name,obj){const blob=new Blob([JSON.stringify(obj,null,2)+'\n'],{type:'application/json;charset=utf-8'}),url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(url),2000);}
 const example={version:1,operations:[{op:'update',id:'warrior-2011',changes:{scores:{emotion:5},notes:'Esempio: modifico soltanto i campi indicati.'}},{op:'add',film:{id:'il-mio-film-2026',title:'Il mio film',year:2026,type:'film',genre:'Drammatico',description:'Trama breve senza spoiler.',why:'Un grande sacrificio.',tags:['sacrificio','famiglia'],scores:{emotion:5,comedy:1,action:2,romance:1,tension:3},match:85}},{op:'delete',id:'il-mio-film-2026'}]};
 function importShape(input){
@@ -334,24 +336,36 @@ async function fileLoad(file){if(!file||file.size>2_000_000){toast('File assente
 function onClick(e){const clos=e.target.closest('[data-close]');if(clos){closeDialog(clos.dataset.close);return;}
  const viewButton=e.target.closest('[data-view]');if(viewButton){setView(viewButton.dataset.view);return;}
  const fav=e.target.closest('[data-favorite]');if(fav){const f=films.find(x=>x.id===fav.dataset.favorite);if(f)changeFilm(f.id,{favorite:!f.favorite}).catch(x=>toast(x.message,true));return;}
- const reaction=e.target.closest('[data-reaction]');if(reaction){const f=films.find(x=>x.id===reaction.dataset.id);if(f)changeFilm(f.id,{reaction:reaction.dataset.reaction,status:reaction.dataset.reaction==='unseen'?'watchlist':'watched'}).then(()=>showDetail(f.id)).catch(x=>toast(x.message,true));return;}
+ const reaction=e.target.closest('[data-reaction]');if(reaction){const f=films.find(x=>x.id===reaction.dataset.id);if(f)changeFilm(f.id,{reaction:reaction.dataset.reaction,status:reaction.dataset.reaction==='unseen'?'watchlist':'watched'}).then(()=>showDetail(f.id,false)).catch(x=>toast(x.message,true));return;}
  const open=e.target.closest('[data-open]');if(open){showDetail(open.dataset.open);return;}
  const action=e.target.closest('[data-action]');if(!action)return;const id=action.dataset.id;
  switch(action.dataset.action){case'add':openEdit();break;
- case'hero-detail':{const f=films.find(x=>x.featured)||films[0];if(f)showDetail(f.id);break;}
+ case'hero-detail':{const f=featuredFilm();if(f)showDetail(f.id);break;}
  case'json':openJson();break;
+ case'back-detail':setView(detailBackView==='explore'?'explore':detailBackView);break;
+ case'add-preview':{
+   if(!remoteSelection || !window.EmotecaExplorer)return;
+   let raw;
+   try{raw=window.EmotecaExplorer.toLocalFilm(remoteSelection);}
+   catch(error){toast(error.message,true);return;}
+   window.AfterframeCatalog.addExternal(raw).then(outcome=>{
+      remoteSelection=null;
+      showDetail(outcome.id,false);
+   }).catch(error=>toast(error.message,true));
+   break;
+ }
  case'clear-filters':typeFilter='all';tagFilter='all';query='';$('#search').value='';render();break;
- case'edit':closeDialog('detail-dialog');openEdit(id);break;
+ case'edit':openEdit(id);break;
  case'delete':deleteFilm(id).catch(x=>toast(x.message,true));break;
- case'toggle-watched':{const f=films.find(x=>x.id===id);if(f)changeFilm(id,{status:f.status==='watched'?'watchlist':'watched',reaction:f.status==='watched'?'unseen':f.reaction}).then(()=>showDetail(id)).catch(x=>toast(x.message,true));break;}
- case'toggle-favorite-detail':{const f=films.find(x=>x.id===id);if(f)changeFilm(id,{favorite:!f.favorite}).then(()=>showDetail(id)).catch(x=>toast(x.message,true));break;}
- case'save-personal':{const rating=Number($('#personal-rating').value),notes=$('#personal-notes').value;changeFilm(id,{rating:rating===0?null:rating,notes}).then(()=>{showDetail(id);toast('Voto e note salvati.');}).catch(x=>toast(x.message,true));break;}
+ case'toggle-watched':{const f=films.find(x=>x.id===id);if(f)changeFilm(id,{status:f.status==='watched'?'watchlist':'watched',reaction:f.status==='watched'?'unseen':f.reaction}).then(()=>showDetail(id,false)).catch(x=>toast(x.message,true));break;}
+ case'toggle-favorite-detail':{const f=films.find(x=>x.id===id);if(f)changeFilm(id,{favorite:!f.favorite}).then(()=>showDetail(id,false)).catch(x=>toast(x.message,true));break;}
+ case'save-personal':{const rating=Number($('#personal-rating').value),notes=$('#personal-notes').value;changeFilm(id,{rating:rating===0?null:rating,notes}).then(()=>{showDetail(id,false);toast('Voto e note salvati.');}).catch(x=>toast(x.message,true));break;}
  case'export':downloadJson(`afterframe-backup-${new Date().toISOString().slice(0,10)}.json`,{format:'afterframe-catalog',version:1,exportedAt:new Date().toISOString(),films});toast('Backup JSON esportato.');break;
  case'example':downloadJson('afterframe-import-esempio.json',example);break;
  case'copy-example':$('#json-input').value=JSON.stringify(example,null,2);preview();break;
  case'preview':preview();break;
  case'apply':applyImport();break;
- case'reset':{if(!confirm('Ripristinare il catalogo iniziale? Tutte le modifiche, voti e titoli aggiunti saranno cancellati. Esporta prima un backup.'))break;if(!confirm('Ultima conferma: vuoi davvero cancellare le modifiche locali?'))break;store(structuredClone(window.SEED_FILMS),'Catalogo iniziale ripristinato.').then(()=>{closeDialog('json-dialog');closeDialog('detail-dialog');}).catch(x=>toast(x.message,true));break;}
+ case'reset':{if(!confirm('Ripristinare il catalogo iniziale? Tutte le modifiche, voti e titoli aggiunti saranno cancellati. Esporta prima un backup.'))break;if(!confirm('Ultima conferma: vuoi davvero cancellare le modifiche locali?'))break;store(structuredClone(window.SEED_FILMS),'Catalogo iniziale ripristinato.').then(()=>{closeDialog('json-dialog');setView('discover');}).catch(x=>toast(x.message,true));break;}
  }
 }
 async function init(){try{let old=await CatalogDB.read();if(old===undefined||old===null){old=structuredClone(window.SEED_FILMS);await CatalogDB.write(old);}if(!Array.isArray(old))throw Error('Il database contiene dati in un formato non riconosciuto.');films=old.map(validateFilm);render();
@@ -360,7 +374,7 @@ async function init(){try{let old=await CatalogDB.read();if(old===undefined||old
  $('#search').addEventListener('input',e=>{query=e.target.value.trim();render();});$('#tag-filter').addEventListener('change',e=>{tagFilter=e.target.value;render();});$('#sort-filter').addEventListener('change',e=>{sortFilter=e.target.value;render();});$('#type-filters').addEventListener('click',e=>{const b=e.target.closest('[data-type]');if(b){typeFilter=b.dataset.type;render();}});
  document.addEventListener('click',onClick);window.addEventListener('popstate',()=>{const v=location.hash.slice(1)||'discover';setView(v,false);});document.addEventListener('keydown',e=>{if(e.key==='/'&&!e.ctrlKey&&!e.altKey&&!e.metaKey&&!['INPUT','TEXTAREA'].includes(document.activeElement.tagName)&&!$$('dialog').some(d=>d.open)){e.preventDefault();$('#search').focus();}if((e.key==='Enter'||e.key===' ')&&e.target.matches('[data-open]')){e.preventDefault();showDetail(e.target.dataset.open);}});
  $('#film-form').addEventListener('submit',saveEdit);$('#edit-title').addEventListener('input',e=>{if(!editFilmId)$('#edit-id').value=slug(e.target.value);});$('#edit-sliders').addEventListener('input',e=>{if(e.target.matches('input[type=range]'))$('#out-'+e.target.id.slice(6)).textContent=e.target.value+'/5';});
- $('#detail-dialog').addEventListener('input',e=>{if(e.target.id==='personal-rating')$('#personal-output').textContent=e.target.value==='0'?'—':e.target.value+'/10';});
+ $('#detail-screen').addEventListener('input',e=>{if(e.target.id==='personal-rating')$('#personal-output').textContent=e.target.value==='0'?'—':e.target.value+'/10';});
  $('#json-input').addEventListener('input',()=>{jsonPlan=null;$('#apply-import').disabled=true;});$('#json-file').addEventListener('change',e=>fileLoad(e.target.files[0]));const drop=$('#drop-zone');drop.addEventListener('click',()=>$('#json-file').click());drop.addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();$('#json-file').click();}});drop.addEventListener('dragover',e=>{e.preventDefault();drop.classList.add('drag-over');});drop.addEventListener('dragleave',()=>drop.classList.remove('drag-over'));drop.addEventListener('drop',e=>{e.preventDefault();drop.classList.remove('drag-over');fileLoad(e.dataTransfer.files[0]);});
  for(const d of $$('dialog'))d.addEventListener('click',e=>{if(e.target===d)d.close();});
 }
