@@ -80,7 +80,8 @@ async function database(){
   if(!enabled)throw Error('Account non configurati.');
   if(!poolPromise){
     poolPromise=(async()=>{
-      const {Pool}=await import('pg');
+      const pg=await import('pg');
+      const Pool=pg.default?.Pool||pg.Pool; // pg supports CommonJS and ESM interop
       const pool=new Pool({connectionString:databaseUrl,max:6,idleTimeoutMillis:30000,connectionTimeoutMillis:7000});
       try{
         await pool.query(`CREATE TABLE IF NOT EXISTS emoteca_users (
