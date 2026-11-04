@@ -15,7 +15,7 @@ test('All browser scripts parse as JavaScript', () => {
 
 test('App loads the explorer and cinematic stylesheet after core assets', () => {
   const html = read('index.html');
-  for (const file of ['styles-cinema.css', 'js/data.js', 'js/db.js', 'js/catalog-identity.js', 'js/lists.js', 'js/app.js', 'js/remote-catalog.js']) {
+  for (const file of ['styles-cinema.css', 'styles-reframe.css', 'js/data.js', 'js/db.js', 'js/catalog-identity.js', 'js/lists.js', 'js/app.js', 'js/remote-catalog.js']) {
     assert.ok(existsSync(new URL('../' + file, import.meta.url)), 'Missing ' + file);
     assert.ok(html.includes(file), 'HTML does not include ' + file);
   }
@@ -32,6 +32,38 @@ test('App loads the explorer and cinematic stylesheet after core assets', () => 
   assert.ok(!html.includes('id="detail-dialog"'), 'Movie details must be a separate page');
   assert.ok(!html.includes('id="source-dialog"'), 'Global search must not be a modal');
 
+});
+
+test('Cinema programme redesign is a user-centered screen system, not decorative slop', () => {
+  const html=read('index.html'),app=read('js/app.js');
+  const css=read('styles-reframe.css');
+  assert.ok(html.includes('styles-reframe.css?v=20261104-reframe1'));
+  assert.ok(read('Dockerfile').includes('COPY index.html styles-cinema.css styles-reframe.css'),
+    'Production image must serve the visual system instead of a 404 CSS response');
+  assert.ok(html.indexOf('styles-cinema.css')<html.indexOf('styles-reframe.css'));
+  assert.ok(html.includes('data-view="discover" aria-current="page">Scopri'));
+  assert.ok(html.includes('data-view="explore">Catalogo'));
+  assert.ok(!html.includes('class="explore-button"'), 'Remove redundant Explore action');
+  assert.ok(html.indexOf('class="catalog-search-section"') < html.indexOf('class="catalog-filters"'),
+    'Global search must precede all additional filters');
+  assert.ok(app.includes("$('#collection-section').hidden=home"),
+    'Discovery should not repeat the entire personal collection below the recommendations');
+  assert.ok(app.includes("case'mark-feature-watched':"),'Recommendation supports rapid viewing entry');
+  assert.ok(app.includes("Hai visto tutto ciò che hai salvato."),'Provide a meaningful completion state');
+  for(const token of ['--ui-ground','--ui-ink','--ui-card','--ui-dark','--ui-accent',
+    '--motion-fast','--motion-regular','--motion-out']) {
+    assert.ok(css.includes(token),'Missing design token '+token);
+  }
+  assert.ok(css.includes('grid-template-columns:repeat(5,minmax(0,1fr))'));
+  assert.ok(css.includes('grid-template-columns:repeat(2,minmax(0,1fr))'));
+  assert.ok(css.includes('.theme-tags {')&&css.includes('flex-wrap:nowrap'),
+    'Theme filters should remain horizontal instead of wrapping into a wall');
+  assert.ok(css.includes('(prefers-reduced-motion:reduce)'),
+    'All motion must respect users with reduced-motion preference');
+  assert.ok(css.includes('(hover:hover) and (pointer:fine)'),
+    'Pointer hover artwork transitions must not affect touch users');
+  assert.ok(!css.includes('gsap')&&!css.includes('backdrop-filter:blur(28px)'),
+    'Avoid unnecessary animation dependencies and decorative effects');
 });
 
 test('Secure catalog API parses as ES module', () => {
@@ -223,7 +255,8 @@ test('Global catalog has genre chips, Anime and a separate reset button', () => 
     assert.ok(html.includes('id="'+id+'"'),'Missing global catalog control '+id);
   }
   assert.ok(html.indexOf('id="global-type"')<html.indexOf('id="global-themes"'));
-  assert.ok(html.indexOf('id="global-themes"')<html.indexOf('id="catalog-search-form"'));
+  assert.ok(html.indexOf('id="catalog-search-form"')<html.indexOf('id="global-themes"'),
+    'The search action must precede optional genre refinements');
   assert.ok(html.includes('data-catalog-type="anime"'), 'Anime is a distinct global category');
   assert.ok(html.includes('data-global-theme="horror"'),'Horror must be a selectable global genre');
   assert.ok(html.includes('data-global-theme="all"'),'All themes toggle exists');
@@ -270,12 +303,34 @@ test('Personal lists keep existing films and their diaries without duplication',
   assert.throws(()=>m.normalize([{id:'lista-test',name:'Orfana',filmIds:[]}],films),/iniziale/);
   const restored=m.normalize(m.initial(films),films);
   assert.deepEqual([...restored[0].filmIds],films.map(f=>f.id));
+  const longFilmId='movie-'+ 'a'.repeat(83); // 89 characters, valid in validateFilm().
+  const longFilm=[...films,{id:longFilmId,title:'Titolo lungo',status:'watchlist'}];
+  const migratedInput=m.initial(longFilm); // vm-realm objects, like an IndexedDB record.
+  migratedInput[0].filmIds=[longFilmId];
+  const migrated=m.normalize(migratedInput,longFilm);
+  assert.deepEqual([...migrated[0].filmIds],[longFilmId],
+    'List film IDs must support the same 90-character maximum as the film schema');
+  const tooLongListId=m.create(m.initial(films),'Lista nuova');
+  tooLongListId[1].id='x'.repeat(65);
+  assert.throws(()=>m.normalize(tooLongListId,films),/Identificativo/);
   const snapshot=read('js/db.js');
   assert.ok(snapshot.includes('writeSnapshot'));
   assert.ok(snapshot.includes("LIST_KEY='personal-lists-v1'"));
   assert.ok(snapshot.includes("tx.objectStore('state').put(films,KEY)"));
   assert.ok(snapshot.includes("tx.objectStore('state').put(lists,LIST_KEY)"));
 });
+test('Unhealthy lists never trigger a destructive overwrite from an ordinary film save', () => {
+  const app=read('js/app.js');
+  assert.ok(app.includes('let listStorageError=null'));
+  assert.ok(app.includes('if(listStorageError){')&&app.includes('await CatalogDB.write(next)'),
+    'A film edit must write only films while the persisted list record is unreadable');
+  assert.ok(app.includes("if(listStorageError)throw Error("),
+    'List management must be read-only until the underlying record is checked');
+  assert.ok(app.includes("const storedLists=await CatalogDB.readLists()"),
+    'Backup should contain the actual stored lists, not synthetic fallback');
+  assert.ok(app.includes("console.warn('Emoteca: impossibile leggere o convalidare"));
+});
+
 test('Personal collections UI supports multiple lists, backup and list management', () => {
   const html=read('index.html'),app=read('js/app.js'),css=read('styles-cinema.css');
   for(const id of ['personal-lists','personal-list-tabs','list-dialog','list-form','list-name-input','personal-list-management']) {
@@ -289,7 +344,8 @@ test('Personal collections UI supports multiple lists, backup and list managemen
   assert.ok(app.includes('function changeListMembership('));
   assert.ok(app.includes("window.EmotecaLists.initial(films)"));
   assert.ok(app.includes("await CatalogDB.writeSnapshot(next,nextLists)"));
-  assert.ok(app.includes('films,lists}'),'JSON backup should contain list memberships');
+  assert.ok(app.includes('payload.lists=storedLists')&&app.includes('async function exportBackup()'),
+    'JSON backup must include the stored membership record without replacing it with a synthetic fallback');
   assert.ok(app.includes("listSnapshot:jsonPlan.listSnapshot"),'JSON import should restore lists');
   assert.ok(css.includes('.personal-list-tab.active'));
   assert.ok(html.includes('js/app.js?v=20261104-multilists'));

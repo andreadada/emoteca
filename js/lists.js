@@ -5,7 +5,9 @@
 (function(){
  'use strict';
  const DEFAULT_ID='mia-lista';
- const idPattern=/^[a-z0-9][a-z0-9-]{0,63}$/;
+ // List IDs are short; film IDs follow validateFilm() and may reach 90 characters.
+ const listIdPattern=/^[a-z0-9][a-z0-9-]{0,63}$/;
+ const filmIdPattern=/^[a-z0-9][a-z0-9-]{0,89}$/;
  const own=(v)=>v&&typeof v==='object'&&!Array.isArray(v)&&Object.getPrototypeOf(v)===Object.prototype;
  function initial(films=[]){
    return [{id:DEFAULT_ID,name:'La mia lista',filmIds:films.map(f=>f.id)}];
@@ -16,13 +18,13 @@
    const ids=new Set();
    if(!raw.some(item=>item?.id===DEFAULT_ID))throw Error('La lista iniziale non è presente.');
    return raw.map(item=>{
-     if(!own(item)||typeof item.id!=='string'||!idPattern.test(item.id)||ids.has(item.id))
+     if(!own(item)||typeof item.id!=='string'||!listIdPattern.test(item.id)||ids.has(item.id))
        throw Error('Identificativo lista non valido o duplicato.');
      ids.add(item.id);
      if(typeof item.name!=='string'||item.name.trim().length<1||item.name.trim().length>60)
        throw Error('Il nome della lista deve contenere da 1 a 60 caratteri.');
      if(!Array.isArray(item.filmIds)||item.filmIds.length>3000||
-       item.filmIds.some(id=>typeof id!=='string'||!idPattern.test(id)))
+       item.filmIds.some(id=>typeof id!=='string'||!filmIdPattern.test(id)))
        throw Error('Film della lista non validi.');
      return {id:item.id,name:item.name.trim(),
        filmIds:[...new Set(item.filmIds)].filter(id=>known.has(id))};

@@ -11,6 +11,7 @@ const statusNames={watchlist:'Da guardare',watching:'In corso',watched:'Già vis
 const reactNames={unseen:'Non visto',cried:'Ho pianto',moved:'Mi ha commosso',nothing:'Non mi ha colpito'};
 let films=[],lists=[],selectedListId='mia-lista',listDialogMode='create',view='discover',typeFilter='all',selectedThemes=new Set(),sortFilter='match',query='',editFilmId=null,detailId=null,jsonPlan=null,posterQueue=[],posterActive=false;
 let featuredId=null, remoteSelection=null, detailBackView='discover';
+let listStorageError=null; // Never overwrite an unreadable existing list record.
 const posterFailed=new Set();
 const posterCache=new Map();const posterTried=new Set();
 try{const cache=JSON.parse(localStorage.getItem('afterframe-poster-cache')||'{}');Object.entries(cache).forEach(([k,v])=>{if(safeUrl(v))posterCache.set(k,v);});}catch{}
@@ -49,15 +50,27 @@ function featuredFilm(){
 }
 function renderFeatured(){
  const f=featuredFilm(),hero=$('#hero');
- if(!f){hero.innerHTML='';hero.hidden=true;return;}
+ if(!f){
+   hero.hidden=false;
+   hero.classList.add('feature-empty');
+   hero.innerHTML=`<div class="feature-story">
+     <p class="feature-context">La prossima storia</p>
+     <h2 class="feature-title">Hai visto tutto ciò che hai salvato.</h2>
+     <p class="feature-description">Esplora il catalogo e scegli il prossimo film da ricordare.</p>
+     <div class="feature-actions"><button class="button primary" type="button" data-view="explore">Trova un film ${icon('arrow')}</button></div>
+    </div><div class="feature-art" aria-hidden="true"><span class="feature-empty-mark">emoteca.</span></div>`;
+   return;
+ }
+ hero.hidden=false;
+ hero.classList.remove('feature-empty');
  hero.innerHTML=`<div class="feature-story">
-  <p class="feature-context">Dalle tue liste <span class="feature-line" aria-hidden="true"></span> In evidenza</p>
+  <p class="feature-context">Un film dalla tua lista <span class="feature-line" aria-hidden="true"></span> Per te</p>
   <p class="feature-meta">${esc(typeNames[f.type])}<span aria-hidden="true">/</span>${esc(f.year)}${f.duration?`<span aria-hidden="true">/</span>${esc(f.duration)}`:''}</p>
   <h2 class="feature-title">${esc(f.title)}</h2>
   <p class="feature-description">${esc(f.description||'Apri la scheda per conoscere questo titolo.')}</p>
   <div class="feature-actions">
-   <button class="button primary" type="button" data-open="${esc(f.id)}">Apri la scheda ${icon('arrow')}</button>
-   <button class="button quiet" type="button" data-view="watchlist">Apri la watchlist</button>
+   <button class="button primary" type="button" data-open="${esc(f.id)}">Scopri il film ${icon('arrow')}</button>
+   <button class="button quiet" type="button" data-action="mark-feature-watched" data-id="${esc(f.id)}">${icon('check')} Già visto</button>
   </div>
  </div>
  <div class="feature-art" aria-hidden="true">
@@ -115,6 +128,7 @@ function render(){
  renderListTabs();
  const home=view==='discover'&&!query;
  $('#hero').hidden=!home;
+ $('#collection-section').hidden=home;
  if(home)renderFeatured();
  renderRail();
  const arr=currentFilms();
@@ -239,7 +253,12 @@ function store(nextOrUpdater,notify,options={}){
        for(const id of newIds)nextLists=window.EmotecaLists.setMembership(nextLists,listId,id,true);
      }
    }
-   await CatalogDB.writeSnapshot(next,nextLists);
+   // A malformed or inaccessible list record must not be overwritten by a
+   // film edit. Keep film diaries writable without silently discarding lists.
+   if(listStorageError){
+     if(options.listSnapshot)throw Error('Le liste sono in sola lettura: esporta un backup e verifica l’errore prima del ripristino.');
+     await CatalogDB.write(next);
+   }else await CatalogDB.writeSnapshot(next,nextLists);
    films=next;
    lists=nextLists;
    if(!lists.some(list=>list.id===selectedListId))selectedListId='mia-lista';
@@ -249,6 +268,7 @@ function store(nextOrUpdater,notify,options={}){
 }
 function persistLists(updater,notify,options={}){
  return queuedWrite(async()=>{
+   if(listStorageError)throw Error('Liste in sola lettura: '+listStorageError.message+'. Esporta un backup prima di modificarle.');
    const next=window.EmotecaLists.normalize(updater(lists),films);
    await CatalogDB.writeLists(next);
    lists=next;
@@ -266,6 +286,7 @@ function changeListMembership(listId,filmId,include){
    .then(()=>{if(!$('#detail-screen').hidden)showDetail(filmId,false);else render();});
 }
 function openListDialog(mode='create'){
+ if(listStorageError){toast('Liste in sola lettura. Esporta un backup e verifica l’errore.',true);return;}
  listDialogMode=mode;
  $('#list-dialog-title').textContent=mode==='rename'?'Rinomina lista':'Nuova lista';
  $('#list-submit').textContent=mode==='rename'?'Salva nome':'Crea lista';
@@ -295,6 +316,7 @@ async function submitListForm(event){
  }catch(error){toast(error.message,true);}
 }
 async function removeSelectedList(){
+ if(listStorageError){toast('Liste in sola lettura. Esporta un backup prima di modificarle.',true);return;}
  if(selectedListId==='mia-lista')return;
  const current=selectedList();
  if(!confirm('Eliminare la lista "'+current.name+'"? I film, i voti e le note non verranno cancellati.'))return;
@@ -385,17 +407,17 @@ function showDetail(id,push=true){
    </select>`:'';
  const journal=saved?`<section class="reaction-panel">
      <h3>Il tuo diario</h3>
-     <p>Una volta vista, questa storia rimane qui insieme ai tuoi ricordi.</p>
+     <p>Registra la tua reazione, il voto e una nota. Questi dati restano privati in questo browser.</p>
      <fieldset class="reaction-fieldset">
        <legend>Come ti ha lasciato?</legend>
-       <div class="reaction-buttons">${Object.entries(reactNames).map(([value,label])=>`<button class="reaction-choice ${f.reaction===value?'active':''}" type="button" data-reaction="${value}" data-id="${esc(f.id)}" aria-pressed="${f.reaction===value?'true':'false'}">${esc(label)}</button>`).join('')}</div>
+       <div class="reaction-buttons">${Object.entries(reactNames).map(([value,label])=>`<button class="reaction-choice ${f.reaction===value&&(value!=='unseen'||f.status!=='watched')?'active':''}" type="button" data-reaction="${value}" data-id="${esc(f.id)}" aria-pressed="${f.reaction===value&&(value!=='unseen'||f.status!=='watched')?'true':'false'}">${esc(label)}</button>`).join('')}</div>
      </fieldset>
      <div class="rating-line"><label for="personal-rating">Il tuo voto</label><input id="personal-rating" type="range" min="0" max="10" step="1" value="${f.rating===null?0:f.rating}"><output id="personal-output">${f.rating===null?'—':f.rating+'/10'}</output></div>
      <div class="note-field"><label for="personal-notes">Note private</label><textarea id="personal-notes" rows="6" maxlength="3000" placeholder="Scrivi quello che vuoi ricordare…">${esc(f.notes)}</textarea></div>
      <button class="button secondary save-personal" type="button" data-action="save-personal" data-id="${esc(f.id)}">${icon('check')} Salva voto e note</button>
    </section>`:`<section class="reaction-panel">
-      <h3>Fallo tuo.</h3>
-      <p>Questo titolo proviene dal catalogo mondiale. Aggiungilo a una lista per segnarlo come visto, conservarne il voto o scrivere note private.</p>
+      <h3>Tieni traccia di questo film.</h3>
+      <p>Salvalo in una lista per registrare la visione, assegnare un voto o scrivere una nota privata.</p>
       <button class="button primary" type="button" data-action="add-preview" ${Number.isInteger(f.year)?'':'disabled'}>Aggiungi alle mie liste</button>
       ${!Number.isInteger(f.year)?'<p class="link-notice">Questa fonte non indica l’anno: puoi aggiungere il titolo manualmente.</p>':''}
     </section>`;
@@ -421,7 +443,8 @@ function showDetail(id,push=true){
        }).join('')}</div>
        <p class="film-lists-help">Seleziona più raccolte senza duplicare la scheda.</p>
      </section>`:''}
-    ${saved&&f.why?`<p class="detail-why">${esc(f.why)}</p>`:''}
+    ${saved&&f.why&&(!window.SEED_FILMS?.some(seed=>seed.id===f.id&&seed.why===f.why))?
+      `<p class="detail-why"><strong>Perché lo hai salvato</strong> ${esc(f.why)}</p>`:''}
     ${saved&&f.catalogId&&f.catalogSource?`<p class="detail-origin">Metadati collegati a ${esc(f.catalogSource)} · Diario personale conservato</p>`:''}
     ${!saved?`<p class="detail-origin">Scheda da ${esc(f.source||'catalogo esterno')}</p>`:''}
   </div>
@@ -437,7 +460,7 @@ function showDetail(id,push=true){
      ${!saved&&f.sourceUrl&&safeUrl(f.sourceUrl)?`<a class="detail-source-link" target="_blank" rel="noopener noreferrer" href="${esc(safeUrl(f.sourceUrl))}">Apri la scheda su ${esc(f.source||'fonte esterna')} ${icon('external')}</a>`:''}
    </aside>
  </div>
- ${saved?`<div class="detail-bottom"><button class="button secondary" type="button" data-action="edit" data-id="${esc(f.id)}">${icon('edit')} Modifica scheda</button><button class="button secondary danger" type="button" data-action="delete" data-id="${esc(f.id)}">${icon('trash')} Elimina dalla libreria</button></div>`:''}`;
+ ${saved?`<div class="detail-bottom"><button class="button secondary" type="button" data-action="edit" data-id="${esc(f.id)}">${icon('edit')} Modifica scheda</button><button class="button secondary danger" type="button" data-action="delete" data-id="${esc(f.id)}">${icon('trash')} Elimina scheda personale</button></div>`:''}`;
  observePosters();
  window.scrollTo({top:0,behavior:'auto'});
 }
@@ -452,6 +475,20 @@ function getFormFilm(){const f=$('#film-form').elements;const old=films.find(x=>
 async function saveEdit(e){e.preventDefault();try{const film=getFormFilm();if(films.some(x=>x.id===film.id&&x.id!==editFilmId))throw Error('Esiste già un titolo con questo ID.');let next;if(editFilmId){next=films.map(x=>x.id===editFilmId?film:x);if(editFilmId!==film.id&&posterCache.has(editFilmId)){posterCache.delete(editFilmId);}}else{next=[film,...films];}await store(next,'Titolo salvato nel database locale.');closeDialog('edit-dialog');if(editFilmId&&detailId===editFilmId)showDetail(film.id,false);}catch(err){toast(err.message,true);}}
 async function deleteFilm(id){const f=films.find(x=>x.id===id);if(!f)return;if(!confirm(`Eliminare definitivamente "${f.title}" dalla libreria locale?`))return;try{await store(films.filter(x=>x.id!==id),'Titolo eliminato.');setView('all');}catch(e){toast(e.message,true);}}
 function downloadJson(name,obj){const blob=new Blob([JSON.stringify(obj,null,2)+'\n'],{type:'application/json;charset=utf-8'}),url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(url),2000);}
+async function exportBackup(){
+ // Export what is actually stored, not a freshly generated in-memory stand-in.
+ const payload={format:'afterframe-catalog',version:1,exportedAt:new Date().toISOString(),films};
+ try{
+   const storedLists=await CatalogDB.readLists();
+   if(storedLists!==null&&storedLists!==undefined)payload.lists=storedLists;
+   else if(!listStorageError)payload.lists=lists;
+   if(listStorageError)payload.backupWarning='Liste non validate: record originale esportato senza modifiche, se accessibile. Verificare prima di importare.';
+ }catch(error){
+   payload.backupWarning='Impossibile leggere le liste persistenti: '+error.message;
+ }
+ downloadJson('emoteca-backup-'+new Date().toISOString().slice(0,10)+'.json',payload);
+ toast(payload.backupWarning?'Backup film esportato. Verifica l’avviso sulle liste nel JSON.':'Backup film e liste esportato.',Boolean(payload.backupWarning));
+}
 const example={version:1,operations:[{op:'update',id:'warrior-2011',changes:{scores:{emotion:5},notes:'Esempio: modifico soltanto i campi indicati.'}},{op:'add',film:{id:'il-mio-film-2026',title:'Il mio film',year:2026,type:'film',genre:'Drammatico',description:'Trama breve senza spoiler.',why:'Un grande sacrificio.',tags:['sacrificio','famiglia'],scores:{emotion:5,comedy:1,action:2,romance:1,tension:3},match:85}},{op:'delete',id:'il-mio-film-2026'}]};
 function importShape(input){
  if(Array.isArray(input))return {mode:'ops',operations:input};
@@ -634,6 +671,15 @@ function onClick(e){const clos=e.target.closest('[data-close]');if(clos){closeDi
  const open=e.target.closest('[data-open]');if(open){showDetail(open.dataset.open);return;}
  const action=e.target.closest('[data-action]');if(!action)return;const id=action.dataset.id;
  switch(action.dataset.action){
+ case'mark-feature-watched':{
+   const selected=films.find(item=>item.id===id);
+   if(selected&&selected.status!=='watched'){
+     changeFilm(id,{status:'watched',reaction:selected.reaction==='unseen'?'unseen':selected.reaction})
+       .then(()=>toast('Film segnato come visto.'))
+       .catch(error=>toast(error.message,true));
+   }
+   break;
+ }
  case'create-list':openListDialog('create');break;
  case'rename-list':openListDialog('rename');break;
  case'delete-list':removeSelectedList();break;
@@ -665,9 +711,7 @@ function onClick(e){const clos=e.target.closest('[data-close]');if(clos){closeDi
  case'toggle-watched':{const f=films.find(x=>x.id===id);if(f)changeFilm(id,{status:f.status==='watched'?'watchlist':'watched',reaction:f.status==='watched'?'unseen':f.reaction}).then(()=>showDetail(id,false)).catch(x=>toast(x.message,true));break;}
  case'toggle-favorite-detail':{const f=films.find(x=>x.id===id);if(f)changeFilm(id,{favorite:!f.favorite}).then(()=>showDetail(id,false)).catch(x=>toast(x.message,true));break;}
  case'save-personal':{const rating=Number($('#personal-rating').value),notes=$('#personal-notes').value;changeFilm(id,{rating:rating===0?null:rating,notes}).then(()=>{showDetail(id,false);toast('Voto e note salvati.');}).catch(x=>toast(x.message,true));break;}
- case'export':downloadJson(`emoteca-backup-${new Date().toISOString().slice(0,10)}.json`,
-   {format:'afterframe-catalog',version:1,exportedAt:new Date().toISOString(),films,lists});
-   toast('Backup JSON di film e liste esportato.');break;
+ case'export':exportBackup().catch(error=>toast('Esportazione fallita: '+error.message,true));break;
  case'example':downloadJson('afterframe-import-esempio.json',example);break;
  case'copy-example':$('#json-input').value=JSON.stringify(example,null,2);preview();break;
  case'preview':preview();break;
@@ -714,13 +758,17 @@ async function init(){
    try{
      const previousLists=await CatalogDB.readLists();
      if(previousLists===null){
-       lists=window.EmotecaLists.initial(films);
-       await CatalogDB.writeLists(lists);
+       const startingLists=window.EmotecaLists.initial(films);
+       await CatalogDB.writeLists(startingLists);
+       lists=startingLists;
      }else lists=window.EmotecaLists.normalize(previousLists,films);
+     listStorageError=null;
    }catch(listError){
-     // A corrupt list record must never hide or overwrite valid film diaries.
-     lists=window.EmotecaLists.initial(films);
-     toast('Le liste non sono leggibili: i film sono intatti. Esporta un backup prima di modificarle.',true);
+     // Preserve the original record and report a useful diagnostic.
+     listStorageError=listError instanceof Error?listError:Error(String(listError));
+     console.warn('Emoteca: impossibile leggere o convalidare le liste personali:',listStorageError);
+     lists=window.EmotecaLists.initial(films); // visual fallback only, never persisted
+     toast('Liste in sola lettura: '+listStorageError.message.slice(0,140)+'. Film intatti: esporta un backup.',true);
    }
    render();
  }catch(e){

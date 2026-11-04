@@ -282,7 +282,8 @@
             ${saved ? `<span class="film-flag"><span aria-hidden="true">✓</span> ${savedLabel}</span>` : ''}
           </button>
           <button class="card-favorite global-save ${saved?'is-fav':''}" type="button" data-global-save="${index}"
-            aria-label="${saved?'Già nella libreria ('+savedLabel+'): ':'Aggiungi alla libreria: '}${escapeHtml(film.title)}" ${saved || !film.year ? 'disabled' : ''}>
+            aria-label="${saved?'Gestisci le liste per ':'Aggiungi alle liste: '}${escapeHtml(film.title)}"
+            title="${saved?'Gestisci le liste':'Aggiungi alle tue liste'}" ${!film.year ? 'disabled' : ''}>
             ${saved ? '✓' : '+'}
           </button>
         </div>
@@ -336,8 +337,10 @@
     updateFilterControls();
     const filtered=selectedThemes.size>0||type==='anime';
     status(query ? 'Ricerca nel catalogo…' : 'Caricamento del catalogo…');
-    $('#catalog-results-title').textContent = type==='anime' ? 'Anime da esplorare' :
-      query ? 'Risultati nel catalogo mondiale' : 'Film da esplorare';
+    $('#catalog-results-title').textContent = query ? 'Risultati della ricerca' :
+      type==='anime' ? 'Anime da esplorare' :
+      type==='tv' ? 'Serie da esplorare' :
+      type==='movie' ? 'Film da esplorare' : 'Film e serie da esplorare';
     try {
       let result;
       if (catalogMode() === 'wikidata') {
@@ -505,6 +508,12 @@
     if (save && !save.disabled) {
       const film = items[Number(save.dataset.globalSave)];
       if (!film) return;
+      // A saved film may be in multiple lists: open its existing diary and let
+      // the person choose memberships instead of showing a dead ✓ button.
+      if (window.AfterframeCatalog?.findSaved?.(film)) {
+        window.AfterframeCatalog?.openExternal?.(film);
+        return;
+      }
       save.disabled = true;
       window.AfterframeCatalog?.addExternal?.(toLocalFilm(film)).then(() => {
         renderResults();

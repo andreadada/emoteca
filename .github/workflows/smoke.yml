@@ -7,6 +7,11 @@ on:
       - 'feat/**'
   pull_request:
 
+# Deduplicate branch-push and PR checks; only the newest commit should run.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.head_ref || github.ref_name }}
+  cancel-in-progress: true
+
 jobs:
   browser-code-checks:
     runs-on: ubuntu-latest

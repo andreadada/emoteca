@@ -10,6 +10,19 @@ Una libreria cinematografica personale in HTML, CSS e JavaScript puro. Parte da 
 
 **Nota di stato (4/11/2026):** codice v3 e CI verificati su GitHub; **deploy reale, dominio e token TMDB di produzione non verificati**. Non confondere i test con provider simulato con una prova live.
 
+## Emoteca / Reframe — nuova UX cinematografica
+
+La nuova interfaccia non replica una dashboard: prende come riferimenti funzionali Letterboxd (diario, liste, watchlist), MUBI (locandine e selezione editoriale) e Trakt (stati di visione). È un prodotto personale con un'identità distinta, non una copia.
+
+- **Scopri:** una proposta non ancora vista (diversa fra visite) con azioni «Scopri il film» e «Già visto»; più una striscia di altri titoli. Niente duplicazione dell'intera libreria nella stessa schermata.
+- **Catalogo:** la ricerca globale è la prima azione, prima di Film/Serie/Anime e generi; tag su una sola riga scorrevole per evitare un muro di filtri.
+- **Le mie liste:** navigazione per raccolte, card film coerenti e ricerca fra i propri titoli.
+- **Scheda film:** poster contenuto, titolo leggibile, azioni esplicite, gestione liste e diario privato. I risultati globali già salvati offrono un'azione per gestire le liste anziché un pulsante disabilitato.
+- **Identità visiva:** carta avorio, verde profondo, accento terracotta; Public Sans + Newsreader. L'opera cinematografica porta colore, non una grafica decorativa. Le animazioni CSS sono brevi, solo dove aiutano, e vengono rimosse quando è attivo `prefers-reduced-motion`.
+- Nessuna nuova dipendenza JavaScript o modifica dei dati personali, degli endpoint TMDB, dei backup o delle liste.
+
+**Design brief, criteri di accessibilità e verifica:** [docs/DESIGN-REFRAME-2026.md](docs/DESIGN-REFRAME-2026.md).
+
 ## Le mie liste — raccolte personali multiple
 
 **La mia libreria** è stata sostituita da **Le mie liste**: il catalogo mondiale è già in **Tutti i film**. Ora la raccolta iniziale si chiama **La mia lista** e contiene tutti i titoli già salvati. Puoi creare più liste con nome personale, rinominarle ed eliminarle senza cancellare i film o le note. Un titolo può appartenere a più raccolte, con la stessa scheda, stesso voto e stato «visto».

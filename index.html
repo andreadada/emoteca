@@ -4,10 +4,11 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <meta name="theme-color" content="#111111" />
-  <meta name="description" content="Emoteca: esplora il cinema e costruisci la tua libreria personale di film, anime e serie." />
-  <title>Emoteca — Film, serie e liste personali</title>
+  <meta name="description" content="Emoteca: trova film e serie, segna ciò che hai visto e crea le tue liste personali." />
+  <title>Emoteca — Il cinema, come lo vivi tu</title>
   <link rel="icon" type="image/svg+xml" href="assets/favicon.svg" />
   <link rel="stylesheet" href="styles-cinema.css?v=20261104-multilists" />
+  <link rel="stylesheet" href="styles-reframe.css?v=20261104-reframe1" />
   <script src="js/data.js" defer></script>
   <script src="js/db.js" defer></script>
   <script src="js/catalog-identity.js?v=20261104-seedlink" defer></script>
@@ -46,14 +47,14 @@
     <header class="site-header">
       <div class="site-header-inner">
         <button class="wordmark" type="button" data-view="discover" aria-label="Emoteca, torna all'inizio" translate="no">
-          <span class="wordmark-symbol" aria-hidden="true">e</span><span>emoteca<span class="wordmark-point">.</span></span>
+          <span class="wordmark-symbol" aria-hidden="true">e</span><span class="wordmark-type"><strong>emoteca<span class="wordmark-point">.</span></strong><small>IL TUO CINEMA</small></span>
         </button>
 
         <nav class="site-nav" aria-label="Navigazione principale">
-          <button class="nav-link active" type="button" data-view="discover" aria-current="page">In evidenza</button>
-          <button class="nav-link" type="button" data-view="explore">Tutti i film</button>
+          <button class="nav-link active" type="button" data-view="discover" aria-current="page">Scopri</button>
+          <button class="nav-link" type="button" data-view="explore">Catalogo</button>
           <button class="nav-link" type="button" data-view="all">Le mie liste <span id="count-all" class="nav-count"></span></button>
-          <button class="nav-link" type="button" data-view="watchlist">Da guardare <span id="count-watchlist" class="nav-count"></span></button>
+          <button class="nav-link" type="button" data-view="watchlist">Da vedere <span id="count-watchlist" class="nav-count"></span></button>
           <button class="nav-link" type="button" data-view="watched">Visti <span id="count-watched" class="nav-count"></span></button>
           <button class="nav-link" type="button" data-view="favorites">Preferiti <span id="count-favorites" class="nav-count"></span></button>
         </nav>
@@ -62,7 +63,7 @@
           <label class="searchbox">
             <svg aria-hidden="true"><use href="#i-search"/></svg>
             <span class="visually-hidden">Cerca film e serie in tutto il mondo</span>
-            <input id="search" name="search" type="search" placeholder="Cerca tutti i film…" autocomplete="off" />
+            <input id="search" name="search" type="search" placeholder="Cerca un film…" autocomplete="off" aria-label="Cerca nel catalogo mondiale" />
             <kbd aria-hidden="true">/</kbd>
           </label>
           <button class="tool-icon" type="button" data-action="add" aria-label="Aggiungi un titolo manualmente" title="Aggiungi manualmente">
@@ -71,7 +72,7 @@
           <button class="tool-icon database-action" type="button" data-action="json" aria-label="Importa o esporta i dati" title="Backup e importazione">
             <svg aria-hidden="true"><use href="#i-database"/></svg>
           </button>
-          <button class="explore-button" type="button" data-view="explore"><svg aria-hidden="true"><use href="#i-search"/></svg><span>Esplora</span></button>
+
         </div>
       </div>
     </header>
@@ -84,8 +85,8 @@
         <section class="reel-section" id="reel-section" aria-labelledby="reel-title">
           <div class="reel-heading">
             <div>
-              <p class="reel-context">Dalla tua lista</p>
-              <h2 id="reel-title">Da scoprire</h2>
+              <p class="reel-context">La tua selezione</p>
+              <h2 id="reel-title">In attesa di essere visti</h2>
             </div>
             <button class="text-action" type="button" data-view="watchlist">Vedi tutti <svg aria-hidden="true"><use href="#i-arrow"/></svg></button>
           </div>
@@ -128,7 +129,7 @@
             <div class="theme-filter-section">
               <div class="theme-filter-heading">
                 <span>Temi e generi</span>
-                <span class="theme-filter-hint">Seleziona uno o più tag</span>
+                <span class="theme-filter-hint">Scorri per vedere gli altri</span>
               </div>
               <div id="theme-filters" class="theme-tags" role="group" aria-label="Filtra per temi e generi">
                 <button class="theme-tag active" type="button" data-theme="all" aria-pressed="true">Tutti i temi</button>
@@ -138,7 +139,7 @@
               <label class="library-searchbox" for="library-search">
                 <svg aria-hidden="true"><use href="#i-search"/></svg>
                 <span class="visually-hidden">Cerca nella tua libreria</span>
-                <input id="library-search" type="search" autocomplete="off" spellcheck="false" placeholder="Cerca nella tua libreria…" />
+                <input id="library-search" type="search" autocomplete="off" spellcheck="false" placeholder="Cerca tra i tuoi titoli…" />
               </label>
               <div class="library-tools-actions">
                 <label for="sort-filter" class="visually-hidden">Ordina titoli</label>
@@ -160,7 +161,7 @@
           <div class="poster-grid" id="film-grid" aria-live="polite"></div>
           <div class="empty-state hidden" id="empty-state">
             <h3>Nessun titolo da mostrare.</h3>
-            <p>Prova un altro filtro oppure cerca un film da aggiungere alla tua libreria.</p>
+            <p>Qui non ci sono titoli con questi filtri. Puoi azzerarli o esplorare il catalogo.</p>
             <div class="empty-actions">
               <button class="button secondary" type="button" data-action="clear-filters">Azzera filtri</button>
               <button class="button primary" type="button" data-view="explore">Esplora il catalogo</button>
@@ -173,10 +174,23 @@
         <div class="catalog-intro">
           <div>
             <p class="catalog-kicker">Catalogo mondiale</p>
-            <h2 id="catalog-title">Tutto il cinema,<br><em>da scoprire.</em></h2>
-            <p>Esplora film e serie, anche quelli che non hai ancora salvato. Cerca un titolo o sfoglia il catalogo.</p>
+            <h2 id="catalog-title">Trova la prossima storia.</h2>
+            <p>Cerca per titolo, esplora per genere e salva ciò che vuoi vedere nelle tue liste.</p>
           </div>
           <p class="catalog-scope" id="catalog-status" role="status" aria-live="polite">Connessione al catalogo…</p>
+        </div>
+        <div class="catalog-search-section">
+          <form class="catalog-search" id="catalog-search-form" role="search">
+            <label for="catalog-query">Cerca nel catalogo cinematografico</label>
+            <div class="catalog-search-row">
+              <svg aria-hidden="true"><use href="#i-search"/></svg>
+              <input type="search" id="catalog-query" name="query" autocomplete="off" minlength="2" placeholder="Un film, una serie, un titolo originale…" />
+              <button type="submit">Cerca <svg aria-hidden="true"><use href="#i-arrow"/></svg></button>
+            </div>
+          </form>
+          <button type="button" class="catalog-clear-filters clear-library-filters" id="clear-global-filters" aria-label="Cancella ricerca e tutti i filtri del catalogo" title="Cancella tutti i filtri" disabled>
+            <svg aria-hidden="true"><use href="#i-close"/></svg>
+          </button>
         </div>
         <div class="catalog-filters">
           <div class="catalog-type-tabs" id="global-type" role="group" aria-label="Formato del catalogo">
@@ -211,19 +225,6 @@
             <button class="theme-tag" type="button" data-global-theme="storia" aria-pressed="false">Storia</button>
             <button class="theme-tag" type="button" data-global-theme="thriller" aria-pressed="false">Thriller</button>
           </div>
-        </div>
-        <div class="catalog-search-section">
-          <form class="catalog-search" id="catalog-search-form" role="search">
-            <label for="catalog-query">Cerca nel catalogo cinematografico</label>
-            <div class="catalog-search-row">
-              <svg aria-hidden="true"><use href="#i-search"/></svg>
-              <input type="search" id="catalog-query" name="query" autocomplete="off" minlength="2" placeholder="Titolo, anche in lingua originale…" />
-              <button type="submit">Cerca film <svg aria-hidden="true"><use href="#i-arrow"/></svg></button>
-            </div>
-          </form>
-          <button type="button" class="catalog-clear-filters clear-library-filters" id="clear-global-filters" aria-label="Cancella ricerca e tutti i filtri del catalogo" title="Cancella tutti i filtri" disabled>
-            <svg aria-hidden="true"><use href="#i-close"/></svg>
-          </button>
         </div>
         <div class="catalog-filter-meta"><span id="catalog-count" class="catalog-count"></span></div>
         <section id="local-match-section" class="catalog-local" hidden aria-labelledby="local-match-title">
@@ -272,7 +273,7 @@
 
       <footer class="site-footer">
         <div class="site-footer-inner">
-          <div class="footer-brand">emoteca<span>.</span><small>Un archivio personale di cinema.</small></div>
+          <div class="footer-brand">emoteca<span>.</span><small>Film da scoprire, ricordi da conservare.</small></div>
           <div class="footer-links">
             <button type="button" data-action="json">Backup dei dati</button>
             <a href="https://www.wikidata.org/" rel="noopener noreferrer" target="_blank">Wikidata</a>

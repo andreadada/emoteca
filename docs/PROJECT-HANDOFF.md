@@ -155,6 +155,34 @@ Nota legale: TMDB richiede attribuzione ed ha un utilizzo gratuito previsto per 
 
 **Leggi [PERSONAL-LISTS.md](PERSONAL-LISTS.md) prima di intervenire sulle liste**; non riscrivere ID dei 35 titoli né spostare o cancellare dati di watch history. Non assumere che `film.ddone.it` abbia già ricevuto la nuova build; Coolify resta da verificare dopo redeploy.
 
+## UX Reframe — revisione grafica integrale, 4 novembre 2026
+
+**Motivazione:** l'utente ha respinto l'intero precedente layout come “AI slop”; la risposta non è cambiare soltanto font e bordi, ma migliorare le azioni principali e tutta la gerarchia di scoperta/catalogo/liste/diario.
+
+**Branch di lavoro:** `feat/cinematheque-ux-redesign` / PR #10. **Documento di riferimento:** [DESIGN-REFRAME-2026.md](DESIGN-REFRAME-2026.md) (problemi osservati, benchmark Letterboxd/MUBI/Trakt/Criterion, criteri, token, motion budget e test). Non dichiarare questa versione live fino a merge + redeploy confermati.
+
+**Implementazione:**
+- `styles-reframe.css`: nuova identità tipografica Public Sans/Newsreader, palette carta/verde/terracotta, poster 5/3/2 colonne, scheda film e diario su superfici chiare, focus accessibili, filtri scorrevoli, layout 1440/390, animazioni CSS limitate con reduced motion.
+- `index.html`: ricerca **prima dei filtri globali**, navigazione più chiara («Scopri», «Catalogo», «Le mie liste», «Da vedere»), elimina CTA «Esplora» ridondante. Si carica CSS nuovo dopo quello legacy, senza modificare backend.
+- `js/app.js`: home focalizzata su un consiglio **non ancora visto**, azione rapida «Già visto», vuoto significativo se non restano titoli, niente griglia duplicata sotto la home. Note e stati personali restano negli stessi record.
+- `js/remote-catalog.js`: pulsante ✓ dei film già presenti porta ora alla gestione delle liste, anziché essere disabilitato.
+- `tests/smoke.test.mjs` e `tests/ui-e2e.mjs`: controlli specifici su ordini/filtri, pagine film, geometria poster, responsive, mobile e assenza regressioni.
+- Nessuna migrazione IndexedDB, database o modifica al proxy TMDB/Wikidata. `styles-cinema.css` rimane base compatibile per gli elementi non sostituiti; per refactor successivi mantenere `styles-reframe.css` come fonte dell'identità visiva prima di rimuovere i vecchi stili.
+
+**Per nuova chat:** verificare CI PR #10, screenshot Playwright e risultato sul dominio; non confondere codice GitHub con aggiornamento effettivo Coolify. Se i test danno esito diverso dalle intenzioni, investigare screenshot/console prima di intervenire su dati.
+
+## Correzione dati liste e deploy del redesign — 4 novembre 2026
+
+**Segnalazione production:** su `https://film.ddone.it/#all` (35 titoli personali) appare il toast «Le liste non sono leggibili: i film sono intatti» e il layout è ancora dark. Quest'ultimo non è un problema di cache fino a prova contraria: `main` non conteneva `styles-reframe.css` perché la PR #10 era ancora aperta. Verificare merge PR #10, commit `main`, container Coolify e CSS con HTTP 200 **prima** di chiedere un hard refresh.
+
+**Bug identificato nella validazione:** `js/app.js/validateFilm` permette ID fino a 90 caratteri, mentre il vecchio `js/lists.js/normalize` condivideva una regex di max 64 caratteri per *ID lista* e *ID film*. Un ID film legittimo da 65–90 caratteri può far fallire il caricamento di tutta la raccolta. Ora esistono regex separate per list IDs (max 64) e film IDs (max 90). L'errore specifico della persona non è verificabile senza leggere il suo IndexedDB: non attribuirlo con certezza a questa causa finché non osservato dopo il fix.
+
+**Protezione aggiunta:** `listStorageError` attiva sola lettura delle liste in caso di record persistente invalido/illeggibile; le modifiche al diario scrivono soltanto i film (`CatalogDB.write`) anziché `writeSnapshot`, per non sovrascrivere il record delle liste con un fallback generato; il backup JSON legge il record originale con `CatalogDB.readLists` se possibile, altrimenti annota `backupWarning`. L'errore mostrato ora include il messaggio tecnico; la console annota l'eccezione. Non pulire IndexedDB e non usare Ripristina catalogo per testare questo caso. I browser test riproducono ID lunghi e record di liste invalidi, verificando che i dati restino intatti.
+
+**UI mobile:** la PR include contenimento degli scroller orizzontali e guardrail sui viewport; confrontare gli screenshot Playwright 390px e 1440px con i risultati CI prima del merge. CSS nuovo è copiato nell'immagine produzione dal Dockerfile aggiornato.
+
+**Post merge:** redeploy Coolify branch `main`, aprire /styles-reframe.css? versione attuale per verificare che ritorni 200, ricaricare la pagina, esportare un backup locale, verificare 35 titoli e le note, provare nuova lista e scheda film. Se il toast persiste, utilizzare il messaggio dettagliato e la console per investigare il record esistente, **senza mutarlo**.
+
 ## 4. Cosa fare ADESSO — roadmap prioritaria
 
 ### P0 — Portare online e validare

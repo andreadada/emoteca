@@ -194,8 +194,10 @@ await scenario('preloaded films are catalog entries without duplicate library ro
   const savedLabels=await page.locator('#global-grid .film-flag').allTextContents();
   assert.ok(savedLabels.some(x=>x.includes('Da guardare')), 'Code Geass preloaded should already be saved');
   assert.ok(savedLabels.some(x=>x.includes('Già visto')), 'Your Name preloaded should already be watched');
-  assert.equal(await page.locator('#global-grid .global-save:disabled').count(),2,
-    'Only the two personal-library titles must be considered saved');
+  assert.equal(await page.locator('#global-grid .global-save[title="Gestisci le liste"]').count(),2,
+    'Saved results must offer list management, rather than a dead disabled button');
+  assert.equal(await page.locator('#global-grid .global-save:disabled').count(),0,
+    'All these source films have valid years, so their actions remain available');
   await page.locator('#global-grid .card-name').first().click();
   await page.locator('#detail-screen').waitFor({state:'visible',timeout:12000});
   assert.match(page.url(),/film=code-geass-2006/);
@@ -267,7 +269,8 @@ await scenario('global theme toggle, Anime browsing and search reset', {width:14
     themes:document.querySelector('#global-themes').getBoundingClientRect().top,
     search:document.querySelector('#catalog-query').getBoundingClientRect().top
   }));
-  assert.ok(order.types<order.themes&&order.themes<order.search);
+  assert.ok(order.search<order.types&&order.types<order.themes,
+    'The search is first, then content type, then optional genre chips');
   await page.locator('#global-themes [data-global-theme="horror"]').click();
   await page.waitForFunction(()=>document.querySelector('#global-grid .card-name')?.textContent==='Horror di prova');
   assert.equal(await page.locator('#global-themes [data-global-theme="horror"]').getAttribute('aria-pressed'),'true');
@@ -363,6 +366,130 @@ await scenario('mobile library tag filters do not overflow', { width: 390, heigh
   assert.equal(await page.locator('#theme-filters [data-theme="all"]').getAttribute('aria-pressed'),'true');
 });
 
+
+await scenario('reframe visual hierarchy is usable from home to catalog, list and detail',
+  {width:1440,height:900},async page=>{
+  const stylesheet=await page.request.get(origin+'/styles-reframe.css');
+  assert.equal(stylesheet.status(),200,'Production Docker image must serve the redesign CSS');
+  assert.match(await stylesheet.text(),/--ui-ground/);
+  const shell=await page.evaluate(()=>{
+    const el=document.querySelector('.site-header');
+    const hero=document.querySelector('#hero').getBoundingClientRect();
+    const poster=document.querySelector('#hero .feature-poster').getBoundingClientRect();
+    const background=getComputedStyle(el).backgroundColor;
+    return {background,heroHeight:hero.height,posterWidth:poster.width,
+      order:[...document.querySelectorAll('.site-nav .nav-link')].map(n=>n.textContent.trim())};
+  });
+  assert.ok(shell.heroHeight>=350&&shell.heroHeight<=680,
+    'First-screen recommendation must be contained, not enormous');
+  assert.ok(shell.posterWidth<=300,'Featured poster should not dominate an entire viewport');
+  assert.equal(shell.order[0],'Scopri');
+  assert.equal(shell.order[1],'Catalogo');
+  assert.ok(await page.locator('#hero [data-action="mark-feature-watched"]').isVisible());
+  await page.screenshot({path:'ui-screenshots/reframe-desktop-discover.png',fullPage:true});
+
+  await page.locator('.nav-link[data-view="explore"]').click();
+  const catalog=await page.evaluate(()=>{
+    const query=document.querySelector('#catalog-query').getBoundingClientRect();
+    const category=document.querySelector('#global-type').getBoundingClientRect();
+    const tags=document.querySelector('#global-themes').getBoundingClientRect();
+    return {queryY:query.y,categoriesY:category.y,tagsHeight:tags.height,
+      tagsScroll:document.querySelector('#global-themes').scrollWidth,
+      tagsClient:document.querySelector('#global-themes').clientWidth};
+  });
+  assert.ok(catalog.queryY<catalog.categoriesY,
+    'Search is the primary task and must appear before catalog filters');
+  assert.ok(catalog.tagsHeight<65,'Genre choices must fit in a single restrained row');
+  assert.ok(catalog.tagsScroll>=catalog.tagsClient,'Genres can be explored without wrapping into a wall');
+  await page.screenshot({path:'ui-screenshots/reframe-desktop-catalog.png',fullPage:true});
+
+  await page.locator('.nav-link[data-view="all"]').click();
+  const local=await page.evaluate(()=>({
+    tagsHeight:document.querySelector('#theme-filters').getBoundingClientRect().height,
+    visibleCards:document.querySelectorAll('#film-grid .film-card').length
+  }));
+  assert.ok(local.tagsHeight<65,'Personal themes must not consume four rows');
+  assert.equal(local.visibleCards,34,'Redesign cannot remove or duplicate existing films');
+  await page.screenshot({path:'ui-screenshots/reframe-desktop-lists.png',fullPage:true});
+  await page.locator('#film-grid .card-name').first().click();
+  const detail=await page.evaluate(()=>({
+    titleSize:parseFloat(getComputedStyle(document.querySelector('.detail-intro h2')).fontSize),
+    posterWidth:document.querySelector('.detail-poster').getBoundingClientRect().width,
+    isLight:getComputedStyle(document.querySelector('.detail-page-content')).backgroundColor
+  }));
+  assert.ok(detail.titleSize<=90,'Detail title must not become a 125px billboard');
+  assert.ok(detail.posterWidth<=270,'Detail art stays in a proper film-poster column');
+  assert.ok(await page.locator('#personal-notes').isVisible(),'Diary remains reachable');
+  await page.screenshot({path:'ui-screenshots/reframe-desktop-detail.png',fullPage:true});
+});
+
+await scenario('reframe mobile search, media index and detail avoid overflow',
+  {width:390,height:844},async page=>{
+  await page.locator('.nav-link[data-view="explore"]').click();
+  const catalog=await page.evaluate(()=>({
+    width:document.documentElement.scrollWidth-window.innerWidth,
+    tagsHeight:document.querySelector('#global-themes').getBoundingClientRect().height
+  }));
+  assert.ok(catalog.width<=1,'Mobile catalog must not overflow horizontally: '+catalog.width);
+  assert.ok(catalog.tagsHeight<65,'Mobile genres remain one row');
+  assert.ok(await page.locator('#catalog-query').isVisible());
+  await page.screenshot({path:'ui-screenshots/reframe-mobile-catalog.png',fullPage:true});
+  await page.locator('.nav-link[data-view="all"]').click();
+  const grids=await page.evaluate(()=>getComputedStyle(document.querySelector('#film-grid')).gridTemplateColumns.split(' ').length);
+  assert.equal(grids,2,'At 390px, movie posters should use two columns');
+  await page.locator('#film-grid .card-name').first().click();
+  assert.ok(await page.locator('.detail-intro h2').isVisible());
+  assert.ok((await page.evaluate(()=>document.documentElement.scrollWidth-window.innerWidth))<=1);
+  await page.screenshot({path:'ui-screenshots/reframe-mobile-detail.png',fullPage:true});
+});
+
+await scenario('long film IDs and malformed list records preserve the personal diary',
+  {width:1440,height:900},async page=>{
+  const longId='movie-'+ 'x'.repeat(83);
+  await page.evaluate(async id=>{
+    const films=await window.CatalogDB.read();
+    const base=films[0];
+    await window.CatalogDB.writeSnapshot([...films,{...base,id,title:'Film con ID lungo',notes:'Non cancellare questa nota',favorite:false}],
+      [{id:'mia-lista',name:'La mia lista',filmIds:[...films.map(f=>f.id),id]}]);
+  },longId);
+  await page.reload({waitUntil:'domcontentloaded'});
+  await page.locator('.nav-link[data-view="all"]').click();
+  assert.equal(await page.locator('#film-grid .film-card').count(),35);
+  assert.equal(await page.locator('#toast-root .toast.error').count(),0,
+    'A valid long film ID must not trigger a false list corruption warning');
+  const before=await page.evaluate(async id=>({
+    lists:await window.CatalogDB.readLists(),
+    film:(await window.CatalogDB.read()).find(f=>f.id===id)
+  }),longId);
+  assert.equal(before.film.notes,'Non cancellare questa nota');
+  assert.ok(before.lists[0].filmIds.includes(longId));
+
+  // Deliberately store an invalid raw list. The next film edit must never
+  // replace the raw record with the synthetic fallback list.
+  const corrupt=[{id:'orphan-list',name:'Vecchia raccolta',filmIds:[longId]}];
+  await page.evaluate(async raw=>window.CatalogDB.writeLists(raw),corrupt);
+  await page.reload({waitUntil:'domcontentloaded'});
+  await page.locator('.nav-link[data-view="all"]').click();
+  await page.locator('#toast-root .toast.error').first().waitFor();
+  assert.match(await page.locator('#toast-root .toast.error').first().textContent(),/La lista iniziale non è presente/);
+  await page.locator('#film-grid .card-favorite').first().click();
+  await page.waitForFunction(async()=>{
+    const raw=await window.CatalogDB.readLists();
+    return raw.length===1&&raw[0].id==='orphan-list';
+  });
+  const rawAfter=await page.evaluate(async()=>window.CatalogDB.readLists());
+  assert.deepEqual(rawAfter,corrupt,'A film edit must not destroy the stored invalid list record');
+  assert.equal((await page.evaluate(async()=>window.CatalogDB.read())).length,35);
+  await page.locator('.header-tools [data-action="json"]').click();
+  const downloadPromise=page.waitForEvent('download');
+  await page.locator('#json-dialog [data-action="export"]').click();
+  const download=await downloadPromise;
+  const {readFile}=await import('node:fs/promises');
+  const payload=JSON.parse(await readFile(await download.path(),'utf8'));
+  assert.equal(payload.films.length,35);
+  assert.deepEqual(payload.lists,corrupt,'Backup preserves the original invalid list record verbatim');
+  assert.ok(payload.backupWarning);
+});
 
 await scenario('personal lists migrate, create, rename and delete safely', {width:1440,height:900}, async page=>{
   await page.locator('.nav-link[data-view="all"]').click();
