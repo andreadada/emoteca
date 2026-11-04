@@ -38,6 +38,8 @@ test('Cinema programme redesign is a user-centered screen system, not decorative
   const html=read('index.html'),app=read('js/app.js');
   const css=read('styles-reframe.css');
   assert.ok(html.includes('styles-reframe.css?v=20261104-reframe1'));
+  assert.ok(read('Dockerfile').includes('COPY index.html styles-cinema.css styles-reframe.css'),
+    'Production image must serve the visual system instead of a 404 CSS response');
   assert.ok(html.indexOf('styles-cinema.css')<html.indexOf('styles-reframe.css'));
   assert.ok(html.includes('data-view="discover" aria-current="page">Scopri'));
   assert.ok(html.includes('data-view="explore">Catalogo'));
