@@ -49,7 +49,8 @@
 
         <nav class="site-nav" aria-label="Navigazione principale">
           <button class="nav-link active" type="button" data-view="discover" aria-current="page">In evidenza</button>
-          <button class="nav-link" type="button" data-view="all">Libreria <span id="count-all" class="nav-count"></span></button>
+          <button class="nav-link" type="button" data-view="explore">Tutti i film</button>
+          <button class="nav-link" type="button" data-view="all">La mia libreria <span id="count-all" class="nav-count"></span></button>
           <button class="nav-link" type="button" data-view="watchlist">Da guardare <span id="count-watchlist" class="nav-count"></span></button>
           <button class="nav-link" type="button" data-view="watched">Visti <span id="count-watched" class="nav-count"></span></button>
           <button class="nav-link" type="button" data-view="favorites">Preferiti <span id="count-favorites" class="nav-count"></span></button>
@@ -58,8 +59,8 @@
         <div class="header-tools">
           <label class="searchbox">
             <svg aria-hidden="true"><use href="#i-search"/></svg>
-            <span class="visually-hidden">Cerca nella libreria personale</span>
-            <input id="search" name="search" type="search" placeholder="Cerca nella libreria…" autocomplete="off" />
+            <span class="visually-hidden">Cerca film e serie in tutto il mondo</span>
+            <input id="search" name="search" type="search" placeholder="Cerca tutti i film…" autocomplete="off" />
             <kbd aria-hidden="true">/</kbd>
           </label>
           <button class="tool-icon" type="button" data-action="add" aria-label="Aggiungi un titolo manualmente" title="Aggiungi manualmente">
@@ -68,7 +69,7 @@
           <button class="tool-icon database-action" type="button" data-action="json" aria-label="Importa o esporta i dati" title="Backup e importazione">
             <svg aria-hidden="true"><use href="#i-database"/></svg>
           </button>
-          <button class="explore-button" type="button" data-action="open-source"><svg aria-hidden="true"><use href="#i-search"/></svg><span>Trova un film</span></button>
+          <button class="explore-button" type="button" data-view="explore"><svg aria-hidden="true"><use href="#i-search"/></svg><span>Esplora</span></button>
         </div>
       </div>
     </header>
@@ -129,11 +130,80 @@
             <p>Prova un altro filtro oppure cerca un film da aggiungere alla tua libreria.</p>
             <div class="empty-actions">
               <button class="button secondary" type="button" data-action="clear-filters">Azzera filtri</button>
-              <button class="button primary" type="button" data-action="open-source">Trova un film</button>
+              <button class="button primary" type="button" data-view="explore">Esplora il catalogo</button>
             </div>
           </div>
         </section>
       </div>
+
+      <section id="explore-page" class="page-body explore-page" hidden aria-labelledby="catalog-title">
+        <div class="catalog-intro">
+          <div>
+            <p class="catalog-kicker">Catalogo mondiale</p>
+            <h2 id="catalog-title">Tutto il cinema,<br><em>da scoprire.</em></h2>
+            <p>Esplora film e serie, anche quelli che non hai ancora salvato. Cerca un titolo o sfoglia il catalogo.</p>
+          </div>
+          <p class="catalog-scope" id="catalog-status" role="status" aria-live="polite">Connessione al catalogo…</p>
+        </div>
+        <form class="catalog-search" id="catalog-search-form" role="search">
+          <label for="catalog-query">Cerca nel catalogo cinematografico</label>
+          <div class="catalog-search-row">
+            <svg aria-hidden="true"><use href="#i-search"/></svg>
+            <input type="search" id="catalog-query" name="query" autocomplete="off" minlength="2" placeholder="Titolo, anche in lingua originale…" />
+            <button type="submit">Cerca film <svg aria-hidden="true"><use href="#i-arrow"/></svg></button>
+          </div>
+        </form>
+        <div class="catalog-filters">
+          <div class="catalog-type-tabs" id="global-type" role="group" aria-label="Tipo di titolo da cercare">
+            <button type="button" data-catalog-type="all" aria-pressed="true" class="active">Film e serie</button>
+            <button type="button" data-catalog-type="movie" aria-pressed="false">Film</button>
+            <button type="button" data-catalog-type="tv" aria-pressed="false">Serie TV</button>
+          </div>
+          <div id="catalog-count" class="catalog-count"></div>
+        </div>
+        <section id="local-match-section" class="catalog-local" hidden aria-labelledby="local-match-title">
+          <div class="reel-heading"><div><p class="reel-context">Già nella tua libreria</p><h3 id="local-match-title">I tuoi titoli</h3></div></div>
+          <div id="local-matches" class="reel-track"></div>
+        </section>
+        <div class="catalog-results-head">
+          <div>
+            <p class="reel-context" id="catalog-provider">Ricerca nel catalogo</p>
+            <h3 id="catalog-results-title">Film da esplorare</h3>
+          </div>
+          <p id="catalog-feedback" role="status" aria-live="polite">Caricamento dei film…</p>
+        </div>
+        <div id="global-grid" class="poster-grid catalog-grid"></div>
+        <div id="catalog-empty" class="catalog-empty" hidden>
+          <p>Nessun risultato da questa fonte. Prova un titolo diverso, anche nella lingua originale.</p>
+        </div>
+        <div class="catalog-load">
+          <button type="button" id="global-next" class="button secondary" hidden>Mostra altri film</button>
+        </div>
+        <div class="catalog-provider-note">
+          <p id="catalog-info">I risultati provengono da cataloghi esterni; la copertura e le copertine dipendono dalla fonte.</p>
+          <div class="source-credits">
+            <a href="https://www.themoviedb.org/" target="_blank" rel="noopener noreferrer" aria-label="The Movie Database"><img alt="TMDB" width="28" height="28" loading="lazy" src="https://www.themoviedb.org/assets/2/v4/logos/v2/blue_square_2-d537fb228cf3ded904ef09b136fe3fec72548ebc1fea3fbbd1ad9e36364db38b.svg" /></a>
+            <small>This product uses the TMDB API but is not endorsed or certified by TMDB.</small>
+            <a href="https://www.wikidata.org/" target="_blank" rel="noopener noreferrer">Dati aperti Wikidata (CC0)</a>
+          </div>
+        </div>
+        <details id="catalog-setup" class="catalog-setup" hidden>
+          <summary>Collega TMDB per sfogliare più film e recuperare le locandine</summary>
+          <p>Se il server non ha una credenziale TMDB, puoi inserire il tuo token di lettura per questa sessione. Rimane soltanto in memoria fino alla chiusura della pagina.</p>
+          <label for="catalog-token">Token TMDB personale</label>
+          <div class="catalog-token-row"><input id="catalog-token" type="password" autocomplete="off" spellcheck="false" placeholder="API Read Access Token" /><button id="catalog-enable" type="button" class="button secondary">Attiva TMDB</button></div>
+          <a href="https://developer.themoviedb.org/docs/getting-started" target="_blank" rel="noopener noreferrer">Come ottenere un token TMDB</a>
+        </details>
+      </section>
+
+      <section id="detail-screen" class="page-body detail-screen" aria-labelledby="film-page-title" hidden>
+        <div class="detail-page-toolbar">
+          <button type="button" class="detail-back" data-action="back-detail"><svg aria-hidden="true"><use href="#i-arrow"/></svg> Torna ai film</button>
+          <span>Emoteca / Scheda film</span>
+        </div>
+        <h2 id="film-page-title" class="visually-hidden">Scheda del film</h2>
+        <div id="detail-content" class="detail-page-content"></div>
+      </section>
 
       <footer class="site-footer">
         <div class="site-footer-inner">
@@ -149,41 +219,6 @@
     </main>
   </div>
 
-  <dialog class="modal source-dialog" id="source-dialog" aria-label="Esplora il catalogo cinematografico">
-    <div class="modal-heading source-heading">
-      <div><div class="eyebrow small-eyebrow">Cataloghi esterni</div><h2>Trova il tuo prossimo film.</h2>
-        <p>Cerca tra i titoli pubblici e aggiungi soltanto quelli che vuoi conservare.</p></div>
-      <button class="icon-btn" data-close="source-dialog" aria-label="Chiudi"><svg><use href="#i-close"/></svg></button>
-    </div>
-    <div class="source-controls">
-      <fieldset class="source-providers"><legend>Scegli la fonte</legend>
-        <label><input type="radio" name="source-provider" value="wikidata" checked /><span>Wikidata <small>Aperto · CC0</small></span></label>
-        <label><input type="radio" name="source-provider" value="tmdb" /><span>TMDB <small>Token personale</small></span></label>
-      </fieldset>
-      <label class="source-token-wrap" id="source-token-wrap" hidden>Token di lettura TMDB (API Read Access Token)
-        <input id="source-token" type="password" autocomplete="off" spellcheck="false" placeholder="Incolla il tuo token Bearer…" />
-        <small>Usato solo per questa ricerca. Non viene salvato né pubblicato nel repository.</small>
-      </label>
-      <form id="source-form" class="source-form">
-        <label for="source-query">Titolo da cercare</label>
-        <div class="source-search-row"><input id="source-query" name="query" type="search" autocomplete="off" required minlength="2" placeholder="Es. Interstellar, La dolce vita…" />
-          <button class="button primary" id="source-submit" type="submit">Cerca film</button></div>
-      </form>
-      <p id="source-feedback" class="source-feedback" role="status" aria-live="polite">Wikidata: dati aperti CC0, nessuna chiave necessaria.</p>
-    </div>
-    <div id="source-results" class="source-results" aria-label="Risultati di ricerca"></div>
-    <div class="source-bottom">
-      <button class="button secondary" id="source-next" type="button" hidden>Pagina successiva</button>
-      <div class="source-credits" aria-label="Crediti delle fonti esterne">
-        <span>Le immagini Commons hanno licenze proprie.</span>
-        <a href="https://www.themoviedb.org/" target="_blank" rel="noopener noreferrer" aria-label="The Movie Database">
-          <img src="https://www.themoviedb.org/assets/2/v4/logos/v2/blue_square_2-d537fb228cf3ded904ef09b136fe3fec72548ebc1fea3fbbd1ad9e36364db38b.svg" width="28" height="28" alt="TMDB" loading="lazy" />
-        </a>
-        <small>This product uses the TMDB API but is not endorsed or certified by TMDB.</small>
-      </div>
-    </div>
-  </dialog>
-  <dialog class="modal detail-modal" id="detail-dialog" aria-label="Dettagli titolo"><div id="detail-content"></div></dialog>
   <dialog class="modal edit-modal" id="edit-dialog" aria-label="Aggiungi o modifica titolo">
     <form id="film-form"><div class="modal-heading"><div><div class="eyebrow small-eyebrow">La tua libreria</div><h2 id="form-title">Aggiungi titolo</h2></div><button class="icon-btn" type="button" data-close="edit-dialog" aria-label="Chiudi"><svg><use href="#i-close"/></svg></button></div>
       <input type="hidden" id="edit-original-id" />
