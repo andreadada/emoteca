@@ -712,3 +712,7 @@ button, a { touch-action: manipulation; -webkit-tap-highlight-color: rgba(201,17
  .personal-list-tab { font-size:11px; }
  .list-dialog-actions { flex-wrap:wrap; }
 }
+
+.preview-list-label { display:block;margin:17px 0 8px;font-size:12px;color:#dfc6a6;font-weight:650; }
+.preview-target-list { min-width:210px;max-width:100%;padding:10px 12px;min-height:42px;border:1px solid #756756;background:#211f1d;color:#f2e5d7;font-size:12px; }
+.preview-target-list:focus-visible { outline:2px solid #e0b98a;outline-offset:2px; }
