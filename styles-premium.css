@@ -211,6 +211,13 @@ button:focus-visible,a:focus-visible,input:focus-visible,textarea:focus-visible,
 .source-bottom {display:flex;align-items:center;justify-content:space-between;gap:15px;padding:19px 33px;border-top:1px solid #39393c;flex-wrap:wrap}
 .source-bottom p {font-size:11px;line-height:1.6;color:#96928d;margin:0;flex:1}
 .source-bottom a {color:#d1b789}
+.top-add {border-color:#6a5a45;color:#e5c899}
+.source-credits {display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.source-credits>span {font-size:11px;color:#a7a19a}
+.source-credits img {display:block;width:28px;height:28px;object-fit:contain}
+.source-credits small {flex:1 1 240px;font-size:10px;color:#a9a5a0;line-height:1.5}
+.source-credits a:focus-visible {outline-offset:4px}
+.json-help a,.mini-link,.code-label,.drop-zone u {color:#dec29a}
 @media(max-width:1550px) {
   .poster-grid {grid-template-columns:repeat(4,minmax(0,1fr))}
   .page-body {padding:32px 35px 20px}
