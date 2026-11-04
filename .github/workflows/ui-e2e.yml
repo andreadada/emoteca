@@ -4,6 +4,11 @@ on:
   pull_request:
   workflow_dispatch:
 
+# Deduplicate branch-push and PR checks; only the newest commit should run.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.head_ref || github.ref_name }}
+  cancel-in-progress: true
+
 jobs:
   chromium-e2e:
     runs-on: ubuntu-latest
