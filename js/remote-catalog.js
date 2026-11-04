@@ -208,15 +208,19 @@
     const grid = $('#global-grid');
     grid.innerHTML = items.map((film, index) => {
       const image = safeImage(film.poster);
-      const saved = Boolean(window.AfterframeCatalog?.isSaved?.(film));
+      const savedFilm = window.AfterframeCatalog?.findSaved?.(film);
+      const saved = Boolean(savedFilm);
+      const savedLabel = savedFilm?.status === 'watched' ? 'Già visto' :
+        savedFilm?.status === 'watching' ? 'In corso' : 'Da guardare';
       return `<article class="film-card global-film">
         <div class="film-cover">
           <button class="poster-wrap" data-global-open="${index}" type="button" aria-label="Apri la scheda di ${escapeHtml(film.title)}">
             <div class="poster-fallback"><strong>${escapeHtml(film.title)}</strong><span>${escapeHtml(film.year || '')}</span></div>
             ${image ? `<img class="poster-image" width="320" height="480" loading="lazy" decoding="async" alt="Locandina di ${escapeHtml(film.title)}" src="${escapeHtml(image)}" onerror="this.remove()" />` : ''}
+            ${saved ? `<span class="film-flag"><span aria-hidden="true">✓</span> ${savedLabel}</span>` : ''}
           </button>
           <button class="card-favorite global-save ${saved?'is-fav':''}" type="button" data-global-save="${index}"
-            aria-label="${saved?'Già nella libreria: ':'Aggiungi alla libreria: '}${escapeHtml(film.title)}" ${saved || !film.year ? 'disabled' : ''}>
+            aria-label="${saved?'Già nella libreria ('+savedLabel+'): ':'Aggiungi alla libreria: '}${escapeHtml(film.title)}" ${saved || !film.year ? 'disabled' : ''}>
             ${saved ? '✓' : '+'}
           </button>
         </div>
@@ -337,6 +341,41 @@
       return data.item || null;
     } catch { return null; }
   }
+  async function resolveSeed(film) {
+    await init();
+    if (catalogMode() === 'wikidata') return null;
+    const identity = window.EmotecaIdentity;
+    if (!identity || !Number.isInteger(film?.year)) return null;
+    const media = identity.mediaOf(film);
+    if (!media) return null;
+    // The seed's existing posterQuery is useful for translated Japanese titles.
+    // Prefer a specific alias over ambiguous short titles (e.g. "86").
+    const candidates = [film.posterQuery, film.title]
+      .map(q => String(q || '').trim()).filter(q => q.length >= 2 && q.length <= 120);
+    const seen = new Set();
+    for (const q of candidates) {
+      if (seen.has(identity.normal(q))) continue;
+      seen.add(identity.normal(q));
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 8000);
+      try {
+        const data = await remoteRequest('search', { q, page: 1, type: media }, controller.signal);
+        const best = identity.chooseSeedMatch(film, data.items, q);
+        if (!best) continue;
+        try {
+          const full = await remoteRequest('detail', {
+            type: media, id: best.sourceId
+          }, controller.signal);
+          return full.item || best;
+        } catch {
+          return best;
+        }
+      } finally {
+        clearTimeout(timeout);
+      }
+    }
+    return null;
+  }
   async function posterFor(film) {
     if (catalogMode() === 'wikidata') return null;
     try {
@@ -381,7 +420,9 @@
   function toLocalFilm(item) {
     if (!item?.id || !item.title || !Number.isInteger(item.year)) throw Error('La fonte non riporta un anno valido: completa il titolo manualmente.');
     return {
-      id: item.id, title: item.title, year: item.year, type: item.type || 'film',
+      id: item.id, catalogId: item.id, catalogSource: item.source || '',
+      catalogTitle: item.title, backdrop: safeImage(item.backdrop),
+      title: item.title, year: item.year, type: item.type || 'film',
       genre: (item.genre || '').slice(0, 100), description: (item.description || '').slice(0, 900),
       why: '', tags: [], scores: { emotion: 0, comedy: 0, action: 0, romance: 0, tension: 0 },
       match: 0, status: 'watchlist', reaction: 'unseen', rating: null,
@@ -400,5 +441,9 @@
     $('#search').value = event.target.value;
     search(event.target.value);
   });
-  window.EmotecaExplorer = { init, search, refresh, detail, posterFor, toLocalFilm, currentQuery: () => query, isEnabled: () => catalogMode() !== 'wikidata' };
+  window.EmotecaExplorer = {
+    init, search, refresh, detail, posterFor, resolveSeed, toLocalFilm,
+    refreshSaved: renderResults, currentQuery: () => query,
+    isEnabled: () => catalogMode() !== 'wikidata'
+  };
 })();
