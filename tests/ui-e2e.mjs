@@ -194,8 +194,10 @@ await scenario('preloaded films are catalog entries without duplicate library ro
   const savedLabels=await page.locator('#global-grid .film-flag').allTextContents();
   assert.ok(savedLabels.some(x=>x.includes('Da guardare')), 'Code Geass preloaded should already be saved');
   assert.ok(savedLabels.some(x=>x.includes('Già visto')), 'Your Name preloaded should already be watched');
-  assert.equal(await page.locator('#global-grid .global-save:disabled').count(),2,
-    'Only the two personal-library titles must be considered saved');
+  assert.equal(await page.locator('#global-grid .global-save[title="Gestisci le liste"]').count(),2,
+    'Saved results must offer list management, rather than a dead disabled button');
+  assert.equal(await page.locator('#global-grid .global-save:disabled').count(),0,
+    'All these source films have valid years, so their actions remain available');
   await page.locator('#global-grid .card-name').first().click();
   await page.locator('#detail-screen').waitFor({state:'visible',timeout:12000});
   assert.match(page.url(),/film=code-geass-2006/);
@@ -363,6 +365,79 @@ await scenario('mobile library tag filters do not overflow', { width: 390, heigh
   assert.equal(await page.locator('#theme-filters [data-theme="all"]').getAttribute('aria-pressed'),'true');
 });
 
+
+await scenario('reframe visual hierarchy is usable from home to catalog, list and detail',
+  {width:1440,height:900},async page=>{
+  const shell=await page.evaluate(()=>{
+    const el=document.querySelector('.site-header');
+    const hero=document.querySelector('#hero').getBoundingClientRect();
+    const poster=document.querySelector('#hero .feature-poster').getBoundingClientRect();
+    const background=getComputedStyle(el).backgroundColor;
+    return {background,heroHeight:hero.height,posterWidth:poster.width,
+      order:[...document.querySelectorAll('.site-nav .nav-link')].map(n=>n.textContent.trim())};
+  });
+  assert.ok(shell.heroHeight>=350&&shell.heroHeight<=680,
+    'First-screen recommendation must be contained, not enormous');
+  assert.ok(shell.posterWidth<=300,'Featured poster should not dominate an entire viewport');
+  assert.equal(shell.order[0],'Scopri');
+  assert.equal(shell.order[1],'Catalogo');
+  assert.ok(await page.locator('#hero [data-action="mark-feature-watched"]').isVisible());
+  await page.screenshot({path:'ui-screenshots/reframe-desktop-discover.png',fullPage:true});
+
+  await page.locator('.nav-link[data-view="explore"]').click();
+  const catalog=await page.evaluate(()=>{
+    const query=document.querySelector('#catalog-query').getBoundingClientRect();
+    const category=document.querySelector('#global-type').getBoundingClientRect();
+    const tags=document.querySelector('#global-themes').getBoundingClientRect();
+    return {queryY:query.y,categoriesY:category.y,tagsHeight:tags.height,
+      tagsScroll:document.querySelector('#global-themes').scrollWidth,
+      tagsClient:document.querySelector('#global-themes').clientWidth};
+  });
+  assert.ok(catalog.queryY<catalog.categoriesY,
+    'Search is the primary task and must appear before catalog filters');
+  assert.ok(catalog.tagsHeight<65,'Genre choices must fit in a single restrained row');
+  assert.ok(catalog.tagsScroll>=catalog.tagsClient,'Genres can be explored without wrapping into a wall');
+  await page.screenshot({path:'ui-screenshots/reframe-desktop-catalog.png',fullPage:true});
+
+  await page.locator('.nav-link[data-view="all"]').click();
+  const local=await page.evaluate(()=>({
+    tagsHeight:document.querySelector('#theme-filters').getBoundingClientRect().height,
+    visibleCards:document.querySelectorAll('#film-grid .film-card').length
+  }));
+  assert.ok(local.tagsHeight<65,'Personal themes must not consume four rows');
+  assert.equal(local.visibleCards,34,'Redesign cannot remove or duplicate existing films');
+  await page.screenshot({path:'ui-screenshots/reframe-desktop-lists.png',fullPage:true});
+  await page.locator('#film-grid .card-name').first().click();
+  const detail=await page.evaluate(()=>({
+    titleSize:parseFloat(getComputedStyle(document.querySelector('.detail-intro h2')).fontSize),
+    posterWidth:document.querySelector('.detail-poster').getBoundingClientRect().width,
+    isLight:getComputedStyle(document.querySelector('.detail-page-content')).backgroundColor
+  }));
+  assert.ok(detail.titleSize<=90,'Detail title must not become a 125px billboard');
+  assert.ok(detail.posterWidth<=270,'Detail art stays in a proper film-poster column');
+  assert.ok(await page.locator('#personal-notes').isVisible(),'Diary remains reachable');
+  await page.screenshot({path:'ui-screenshots/reframe-desktop-detail.png',fullPage:true});
+});
+
+await scenario('reframe mobile search, media index and detail avoid overflow',
+  {width:390,height:844},async page=>{
+  await page.locator('.nav-link[data-view="explore"]').click();
+  const catalog=await page.evaluate(()=>({
+    width:document.documentElement.scrollWidth-window.innerWidth,
+    tagsHeight:document.querySelector('#global-themes').getBoundingClientRect().height
+  }));
+  assert.ok(catalog.width<=1,'Mobile catalog must not overflow horizontally: '+catalog.width);
+  assert.ok(catalog.tagsHeight<65,'Mobile genres remain one row');
+  assert.ok(await page.locator('#catalog-query').isVisible());
+  await page.screenshot({path:'ui-screenshots/reframe-mobile-catalog.png',fullPage:true});
+  await page.locator('.nav-link[data-view="all"]').click();
+  const grids=await page.evaluate(()=>getComputedStyle(document.querySelector('#film-grid')).gridTemplateColumns.split(' ').length);
+  assert.equal(grids,2,'At 390px, movie posters should use two columns');
+  await page.locator('#film-grid .card-name').first().click();
+  assert.ok(await page.locator('.detail-intro h2').isVisible());
+  assert.ok((await page.evaluate(()=>document.documentElement.scrollWidth-window.innerWidth))<=1);
+  await page.screenshot({path:'ui-screenshots/reframe-mobile-detail.png',fullPage:true});
+});
 
 await scenario('personal lists migrate, create, rename and delete safely', {width:1440,height:900}, async page=>{
   await page.locator('.nav-link[data-view="all"]').click();
