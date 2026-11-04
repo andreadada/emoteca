@@ -10,6 +10,12 @@ Una libreria cinematografica personale in HTML, CSS e JavaScript puro. Parte da 
 
 **Nota di stato (4/11/2026):** codice v3 e CI verificati su GitHub; **deploy reale, dominio e token TMDB di produzione non verificati**. Non confondere i test con provider simulato con una prova live.
 
+## Filtri della libreria personale
+
+Sotto i formati (Tutti, Film, Serie, Anime, Film anime, Animazione), la libreria propone i **temi e i generi come mini-tag selezionabili**, incluso **Horror**. Puoi attivarne più di uno: all'interno dei temi la selezione è inclusiva (OR), mentre formato e ricerca locale restringono i risultati (AND). `Tutti i temi` deseleziona i tag; la **X** a fianco dell'ordinamento azzera formato, temi, testo cercato e ordinamento.
+
+Il campo **Cerca nella tua libreria** filtra i soli titoli salvati. La ricerca in alto nella testata continua a consultare il **catalogo globale**: sono due funzionalità distinte. I filtri sono responsive e non modificano dati di visione o note.
+
 ## Collegamento fra i titoli iniziali e il catalogo mondiale
 
 I **34 titoli precompilati** rimangono nella libreria personale con i loro stati di visione e le note. Quando cerchi una di queste opere in **Tutti i film**, Emoteca la riconosce tramite l'identità canonica (`catalogId`) oppure titolo/anno/formato, anche quando TMDB cataloga come **serie TV** un titolo che Emoteca classifica come **anime**. Nel catalogo compare quindi **Già visto**, **Da guardare** o **In corso** e il titolo non viene importato due volte.
