@@ -16,6 +16,14 @@ Sotto i formati (Tutti, Film, Serie, Anime, Film anime, Animazione), la libreria
 
 Il campo **Cerca nella tua libreria** filtra i soli titoli salvati. La ricerca in alto nella testata continua a consultare il **catalogo globale**: sono due funzionalità distinte. I filtri sono responsive e non modificano dati di visione o note.
 
+## Filtri in “Tutti i film” (catalogo mondiale)
+
+Il catalogo globale ha le schede **Film e serie, Film, Serie TV e Anime** e, subito sotto, temi e generi selezionabili come mini-tag, incluso **Horror**. Più tag sono inclusivi (OR); categorie e ricerca restringono (AND). Una barra di ricerca nel catalogo e una **X** permettono di cercare e resettare categorie, temi e testo. I filtri si applicano ai risultati di **TMDB** (non alla sola libreria locale).
+
+**Anime** è una selezione di film e serie giapponesi animati secondo TMDB (lingua originale `ja` e genere `16`). La ricerca per titolo con filtri tema usa i risultati delle pagine TMDB (la fonte non restituisce il totale filtrato): proseguire con **Mostra altri film** per esaminare altre pagine. La discovery applica i generi lato API.
+
+**Limite reale:** TMDB non ha un genere Horror per le serie TV; Horror è genere 27 per il cinema. Con fallback Wikidata non è disponibile una ricerca globale affidabile per genere: il sito informa l'utente e richiede TMDB per quei filtri.
+
 ## Collegamento fra i titoli iniziali e il catalogo mondiale
 
 I **34 titoli precompilati** rimangono nella libreria personale con i loro stati di visione e le note. Quando cerchi una di queste opere in **Tutti i film**, Emoteca la riconosce tramite l'identità canonica (`catalogId`) oppure titolo/anno/formato, anche quando TMDB cataloga come **serie TV** un titolo che Emoteca classifica come **anime**. Nel catalogo compare quindi **Già visto**, **Da guardare** o **In corso** e il titolo non viene importato due volte.
