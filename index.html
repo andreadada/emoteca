@@ -3,12 +3,11 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <meta name="theme-color" content="#101115" />
+  <meta name="theme-color" content="#111111" />
   <meta name="description" content="Emoteca: esplora il cinema e costruisci la tua libreria personale di film, anime e serie." />
-  <title>Emoteca — Il tuo cinema, in un unico posto</title>
+  <title>Emoteca — La tua libreria di cinema</title>
   <link rel="icon" type="image/svg+xml" href="assets/favicon.svg" />
-  <link rel="stylesheet" href="styles.css" />
-  <link rel="stylesheet" href="styles-premium.css" />
+  <link rel="stylesheet" href="styles-cinema.css" />
   <script src="js/data.js" defer></script>
   <script src="js/db.js" defer></script>
   <script src="js/app.js" defer></script>
@@ -42,67 +41,113 @@
   </svg>
 
   <div class="app-shell">
-    <aside class="sidebar" id="sidebar">
-      <div class="brand"><span class="brand-icon" aria-hidden="true">e.</span><div><strong>emoteca</strong><small>La tua collezione di cinema</small></div></div>
-      <div class="sidebar-caption">La collezione</div>
-      <nav class="side-nav" aria-label="Navigazione libreria">
-        <button class="nav-link active" data-view="discover"><svg><use href="#i-home"/></svg> In evidenza <span class="nav-indicator"></span></button>
-        <button class="nav-link" data-view="all"><svg><use href="#i-grid"/></svg> Tutta la libreria <span id="count-all"></span></button>
-        <button class="nav-link" data-view="watchlist"><svg><use href="#i-bookmark"/></svg> Da guardare <span id="count-watchlist"></span></button>
-        <button class="nav-link" data-view="watched"><svg><use href="#i-eye"/></svg> Già visti <span id="count-watched"></span></button>
-        <button class="nav-link" data-view="favorites"><svg><use href="#i-heart"/></svg> Preferiti <span id="count-favorites"></span></button>
-        <button class="nav-link nav-explore" data-action="open-source"><svg><use href="#i-search"/></svg> Esplora nuovi film</button>
-      </nav>
-      <div class="sidebar-caption second-caption">Il tuo archivio</div>
-      <p class="sidebar-note">Le opere che ami, le tue valutazioni, i film da vedere. Tutto raccolto qui.</p>
-      <div class="sidebar-spacer"></div>
-      <div class="sidebar-card"><strong>Una libreria che resta tua.</strong><p>I titoli e le note sono salvati in questo browser. Esporta una copia quando vuoi.</p><button class="button secondary sidebar-db" data-action="json">Backup e importazione <svg><use href="#i-arrow"/></svg></button></div>
-      <div class="sidebar-footer">EMOTECA · ARCHIVIO PERSONALE</div>
-    </aside>
+    <header class="site-header">
+      <div class="site-header-inner">
+        <button class="wordmark" type="button" data-view="discover" aria-label="Emoteca, torna all'inizio" translate="no">
+          <span class="wordmark-symbol" aria-hidden="true">e</span><span>emoteca<span class="wordmark-point">.</span></span>
+        </button>
 
-    <main class="main-content" id="main">
-      <header class="topbar">
-        <button class="icon-btn menu-toggle" aria-label="Apri menu" data-action="menu"><svg><use href="#i-menu"/></svg></button>
-        <div class="crumb"><span>Emoteca</span><span class="crumb-sep">/</span><strong id="current-view-name">In evidenza</strong></div>
-        <div class="topbar-actions">
-          <label class="searchbox"><svg><use href="#i-search"/></svg><input id="search" type="search" placeholder="Cerca nella libreria…" autocomplete="off" aria-label="Cerca film e serie"/><kbd>/</kbd></label>
-          <button class="icon-btn top-db" data-action="json" title="Importa/esporta JSON" aria-label="Gestisci JSON"><svg><use href="#i-database"/></svg></button>
-          <button class="icon-btn top-add" data-action="add" title="Aggiungi un titolo manualmente" aria-label="Aggiungi un titolo manualmente"><svg><use href="#i-plus"/></svg></button>
-          <button class="button primary" data-action="open-source"><svg><use href="#i-search"/></svg><span>Esplora film</span></button>
+        <nav class="site-nav" aria-label="Navigazione principale">
+          <button class="nav-link active" type="button" data-view="discover" aria-current="page">In evidenza</button>
+          <button class="nav-link" type="button" data-view="all">Libreria <span id="count-all" class="nav-count"></span></button>
+          <button class="nav-link" type="button" data-view="watchlist">Da guardare <span id="count-watchlist" class="nav-count"></span></button>
+          <button class="nav-link" type="button" data-view="watched">Visti <span id="count-watched" class="nav-count"></span></button>
+          <button class="nav-link" type="button" data-view="favorites">Preferiti <span id="count-favorites" class="nav-count"></span></button>
+        </nav>
+
+        <div class="header-tools">
+          <label class="searchbox">
+            <svg aria-hidden="true"><use href="#i-search"/></svg>
+            <span class="visually-hidden">Cerca nella libreria personale</span>
+            <input id="search" name="search" type="search" placeholder="Cerca nella libreria…" autocomplete="off" />
+            <kbd aria-hidden="true">/</kbd>
+          </label>
+          <button class="tool-icon" type="button" data-action="add" aria-label="Aggiungi un titolo manualmente" title="Aggiungi manualmente">
+            <svg aria-hidden="true"><use href="#i-plus"/></svg>
+          </button>
+          <button class="tool-icon database-action" type="button" data-action="json" aria-label="Importa o esporta i dati" title="Backup e importazione">
+            <svg aria-hidden="true"><use href="#i-database"/></svg>
+          </button>
+          <button class="explore-button" type="button" data-action="open-source"><svg aria-hidden="true"><use href="#i-search"/></svg><span>Trova un film</span></button>
         </div>
-      </header>
-
-      <div class="page-body">
-        <section class="hero" id="hero">
-          <div class="hero-text"><div class="eyebrow">Una libreria dedicata al cinema</div>
-            <h1>Il cinema che<br/>ti porti dentro.</h1>
-            <p>Scopri nuovi titoli, tieni traccia dei film visti e conserva quelli che vuoi ricordare.</p>
-            <div class="hero-actions"><button class="button primary" data-action="open-source">Esplora il catalogo <svg><use href="#i-arrow"/></svg></button><button class="button frosted" data-view="all">Apri la libreria</button></div>
-          </div>
-          <div class="hero-visual" aria-hidden="true"><div class="hero-halo"></div><div class="hero-poster" id="hero-poster"><span>WARRIOR</span><small>2011</small></div></div>
-          <span class="hero-index">Una storia alla volta.</span>
-        </section>
-
-        <section class="stats" aria-label="Statistiche collezione">
-          <div class="stat"><span class="stat-icon violet"><svg><use href="#i-grid"/></svg></span><div><strong id="stat-total">0</strong><small>Titoli in libreria</small></div></div>
-          <div class="stat"><span class="stat-icon blush"><svg><use href="#i-bookmark"/></svg></span><div><strong id="stat-watchlist">0</strong><small>Da scoprire</small></div></div>
-          <div class="stat"><span class="stat-icon sky"><svg><use href="#i-eye"/></svg></span><div><strong id="stat-watched">0</strong><small>Già guardati</small></div></div>
-          <div class="stat"><span class="stat-icon rose"><svg><use href="#i-heart"/></svg></span><div><strong id="stat-cried">0</strong><small>Ti hanno fatto piangere</small></div></div>
-        </section>
-
-        <section class="catalog-section">
-          <div class="catalog-heading"><div><div class="eyebrow small-eyebrow">La libreria</div><h2 id="section-title">Da vedere</h2><p id="section-caption">I titoli salvati, pronti per la prossima serata.</p></div><div class="results-count" id="results-count"></div></div>
-          <div class="filter-bar"><div class="filter-pills" id="type-filters" aria-label="Filtra per formato">
-            <button class="pill active" data-type="all">Tutti</button><button class="pill" data-type="film">Film</button><button class="pill" data-type="anime">Anime</button><button class="pill" data-type="serie">Serie TV</button><button class="pill" data-type="film-anime">Film anime</button><button class="pill" data-type="film-animazione">Animazione</button>
-          </div><div class="filter-selects"><label class="visually-hidden" for="tag-filter">Tema</label><select id="tag-filter"><option value="all">Tutte le emozioni</option></select><label class="visually-hidden" for="sort-filter">Ordina</label><select id="sort-filter"><option value="match">Più affini a te</option><option value="newest">Più recenti</option><option value="oldest">Meno recenti</option><option value="title">Titolo A–Z</option><option value="emotion">Più emozionanti</option><option value="rating">Voto personale</option></select></div></div>
-          <div class="poster-grid" id="film-grid" aria-live="polite"></div>
-          <div class="empty-state hidden" id="empty-state"><div class="empty-icon"><svg><use href="#i-search"/></svg></div><h3>Nessun titolo trovato</h3><p>Prova a cambiare filtri o ad aggiungere un nuovo titolo.</p><button class="button secondary" data-action="clear-filters">Azzera filtri</button></div>
-        </section>
-        <footer class="footer"><span>Emoteca © 2026 · La tua collezione, sul tuo dispositivo.</span><span>Dati esterni: <a href="https://www.wikidata.org/" target="_blank" rel="noopener noreferrer">Wikidata</a> e, se abilitato, <a href="https://www.themoviedb.org/" target="_blank" rel="noopener noreferrer">TMDB</a>. Disponibilità streaming non verificata.</span></footer>
       </div>
+    </header>
+
+    <main id="main" class="main-content">
+      <h1 class="visually-hidden" id="page-title">Emoteca — In evidenza</h1>
+      <div class="page-body">
+        <section class="feature" id="hero" aria-label="Titolo in evidenza"></section>
+
+        <section class="reel-section" id="reel-section" aria-labelledby="reel-title">
+          <div class="reel-heading">
+            <div>
+              <p class="reel-context">Dalla tua lista</p>
+              <h2 id="reel-title">Da scoprire</h2>
+            </div>
+            <button class="text-action" type="button" data-view="watchlist">Vedi tutti <svg aria-hidden="true"><use href="#i-arrow"/></svg></button>
+          </div>
+          <div class="reel-track" id="editorial-rail"></div>
+        </section>
+
+        <section class="collection-section" id="collection-section" aria-labelledby="section-title">
+          <div class="collection-heading">
+            <div class="collection-heading-copy">
+              <p class="section-index" id="current-view-name">La tua selezione</p>
+              <h2 id="section-title">La libreria</h2>
+              <p id="section-caption">Tutti i film che hai scelto di conservare.</p>
+            </div>
+            <div class="collection-meta"><span id="library-meta"></span><span id="results-count" aria-live="polite"></span></div>
+          </div>
+
+          <div class="library-toolbar">
+            <div class="type-tabs" id="type-filters" role="group" aria-label="Filtra per formato">
+              <button class="pill active" type="button" data-type="all" aria-pressed="true">Tutti</button>
+              <button class="pill" type="button" data-type="film" aria-pressed="false">Film</button>
+              <button class="pill" type="button" data-type="serie" aria-pressed="false">Serie</button>
+              <button class="pill" type="button" data-type="anime" aria-pressed="false">Anime</button>
+              <button class="pill" type="button" data-type="film-anime" aria-pressed="false">Film anime</button>
+              <button class="pill" type="button" data-type="film-animazione" aria-pressed="false">Animazione</button>
+            </div>
+            <div class="toolbar-selects">
+              <label for="tag-filter" class="visually-hidden">Filtra per tema</label>
+              <select id="tag-filter" name="tag-filter"><option value="all">Tutti i temi</option></select>
+              <label for="sort-filter" class="visually-hidden">Ordina titoli</label>
+              <select id="sort-filter" name="sort-filter">
+                <option value="match">Ordine editoriale</option>
+                <option value="newest">Più recenti</option>
+                <option value="oldest">Meno recenti</option>
+                <option value="title">Titolo A–Z</option>
+                <option value="rating">Voto personale</option>
+                <option value="emotion">Profilo emozionale</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="poster-grid" id="film-grid" aria-live="polite"></div>
+          <div class="empty-state hidden" id="empty-state">
+            <h3>Nessun titolo da mostrare.</h3>
+            <p>Prova un altro filtro oppure cerca un film da aggiungere alla tua libreria.</p>
+            <div class="empty-actions">
+              <button class="button secondary" type="button" data-action="clear-filters">Azzera filtri</button>
+              <button class="button primary" type="button" data-action="open-source">Trova un film</button>
+            </div>
+          </div>
+        </section>
+      </div>
+
+      <footer class="site-footer">
+        <div class="site-footer-inner">
+          <div class="footer-brand">emoteca<span>.</span><small>Un archivio personale di cinema.</small></div>
+          <div class="footer-links">
+            <button type="button" data-action="json">Backup dei dati</button>
+            <a href="https://www.wikidata.org/" rel="noopener noreferrer" target="_blank">Wikidata</a>
+            <a href="https://www.themoviedb.org/" rel="noopener noreferrer" target="_blank">TMDB</a>
+          </div>
+          <p>Le note restano in questo browser. La disponibilità sulle piattaforme streaming non è verificata.</p>
+        </div>
+      </footer>
     </main>
   </div>
-  <div class="mobile-overlay" id="mobile-overlay" data-action="close-menu"></div>
 
   <dialog class="modal source-dialog" id="source-dialog" aria-label="Esplora il catalogo cinematografico">
     <div class="modal-heading source-heading">
@@ -140,7 +185,7 @@
   </dialog>
   <dialog class="modal detail-modal" id="detail-dialog" aria-label="Dettagli titolo"><div id="detail-content"></div></dialog>
   <dialog class="modal edit-modal" id="edit-dialog" aria-label="Aggiungi o modifica titolo">
-    <form id="film-form"><div class="modal-heading"><div><div class="eyebrow small-eyebrow">IL TUO CATALOGO</div><h2 id="form-title">Aggiungi titolo</h2></div><button class="icon-btn" type="button" data-close="edit-dialog" aria-label="Chiudi"><svg><use href="#i-close"/></svg></button></div>
+    <form id="film-form"><div class="modal-heading"><div><div class="eyebrow small-eyebrow">La tua libreria</div><h2 id="form-title">Aggiungi titolo</h2></div><button class="icon-btn" type="button" data-close="edit-dialog" aria-label="Chiudi"><svg><use href="#i-close"/></svg></button></div>
       <input type="hidden" id="edit-original-id" />
       <div class="form-grid">
         <label class="field span-2">Titolo <input name="title" id="edit-title" required maxlength="180" placeholder="Es. Warrior" /></label>
@@ -156,16 +201,16 @@
         <label class="field">Durata / stagioni <input name="duration" maxlength="60" placeholder="2h 20m" /></label>
         <label class="field">Affinità stimata (0–100) <input name="match" type="number" min="0" max="100" value="80" /></label>
         <label class="field">Avvertenze contenuti <input name="warnings" maxlength="240" placeholder="Facoltativo" /></label>
-        <div class="span-2 slider-wrap"><div class="slider-title">PROFILO DEL TITOLO <span>0 = assente · 5 = molto forte</span></div><div id="edit-sliders" class="score-edit-grid"></div></div>
+        <div class="span-2 slider-wrap"><div class="slider-title">Profilo del titolo <span>0 = assente · 5 = molto forte</span></div><div id="edit-sliders" class="score-edit-grid"></div></div>
       </div>
       <div class="modal-actions"><button type="button" class="button secondary" data-close="edit-dialog">Annulla</button><button type="submit" class="button primary"><svg><use href="#i-check"/></svg> Salva titolo</button></div>
     </form>
   </dialog>
   <dialog class="modal json-modal" id="json-dialog" aria-label="Gestione database JSON">
-    <div class="modal-heading"><div><div class="eyebrow small-eyebrow">DATA MANAGEMENT</div><h2>Gestione database <span class="accent">JSON</span></h2><p>Aggiungi, modifica, aggiorna o elimina con un unico file. Anteprima prima di applicare.</p></div><button class="icon-btn" data-close="json-dialog" aria-label="Chiudi"><svg><use href="#i-close"/></svg></button></div>
+    <div class="modal-heading"><div><div class="eyebrow small-eyebrow">Archivio personale</div><h2>Gestione database <span class="accent">JSON</span></h2><p>Aggiungi, modifica, aggiorna o elimina con un unico file. Anteprima prima di applicare.</p></div><button class="icon-btn" data-close="json-dialog" aria-label="Chiudi"><svg><use href="#i-close"/></svg></button></div>
     <div class="db-actions"><button class="button secondary" data-action="export"><svg><use href="#i-download"/></svg> Esporta backup</button><button class="button secondary" data-action="example"><svg><use href="#i-download"/></svg> Esempio modifiche</button><button class="button secondary" data-action="reset"><svg><use href="#i-trash"/></svg> Ripristina catalogo</button></div>
-    <div class="drop-zone" id="drop-zone" role="button" tabindex="0"><svg><use href="#i-upload"/></svg><strong>Trascina qui il tuo file JSON</strong><span>oppure <u>seleziona un file</u> dal dispositivo</span><input type="file" id="json-file" accept="application/json,.json" hidden /></div>
-    <div class="code-label"><span>EDITOR JSON <span class="subtle">· operazioni singole, batch o backup</span></span><button data-action="copy-example" class="mini-link">Inserisci esempio</button></div>
+    <div class="drop-zone" id="drop-zone" role="button" tabindex="0"><svg><use href="#i-upload"/></svg><strong>Trascina il tuo file JSON qui</strong><span>oppure <u>seleziona un file</u> dal dispositivo</span><input type="file" id="json-file" accept="application/json,.json" hidden /></div>
+    <div class="code-label"><span>Editor JSON <span class="subtle">· operazioni singole, batch o backup</span></span><button data-action="copy-example" class="mini-link">Inserisci esempio</button></div>
     <textarea id="json-input" spellcheck="false" placeholder='{"op":"update","id":"warrior-2011","changes":{"scores":{"emotion":5}}}'></textarea>
     <div id="json-preview" class="json-preview muted"><svg><use href="#i-info"/></svg> Inserisci o carica un JSON per visualizzare le operazioni prima di applicarle.</div>
     <div class="modal-actions"><button class="button secondary" data-action="preview"><svg><use href="#i-eye"/></svg> Verifica JSON</button><button class="button primary" id="apply-import" data-action="apply" disabled><svg><use href="#i-check"/></svg> Applica modifiche</button></div>
