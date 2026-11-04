@@ -15,7 +15,7 @@ const posterFailed=new Set();
 const posterCache=new Map();const posterTried=new Set();
 try{const cache=JSON.parse(localStorage.getItem('afterframe-poster-cache')||'{}');Object.entries(cache).forEach(([k,v])=>{if(safeUrl(v))posterCache.set(k,v);});}catch{}
 function fallback(f){return `<div class="poster-fallback"><strong>${esc(f.title)}</strong><span>${esc(f.year)}</span></div>`;}
-function posterMarkup(f,eager=false){const src=safeUrl(f.poster)||safeUrl(posterCache.get(f.id));return `${fallback(f)}${src?`<img class="poster-image" src="${esc(src)}" alt="Locandina di ${esc(f.title)}" width="320" height="480" loading="${eager?'eager':'lazy'}" fetchpriority="${eager?'high':'auto'}" decoding="async" onerror="this.remove()" />`:''}`;}
+function posterMarkup(f,eager=false){const src=safeUrl(posterCache.get(f.id))||(!posterFailed.has(f.id)&&safeUrl(f.poster));return `${fallback(f)}${src?`<img class="poster-image" src="${esc(src)}" alt="Locandina di ${esc(f.title)}" width="320" height="480" loading="${eager?'eager':'lazy'}" fetchpriority="${eager?'high':'auto'}" decoding="async" onerror="this.remove();window.EmotecaPosterFailed?.(\'${esc(f.id)}\')" />`:''}`;}
 function toast(msg,isError=false){const root=$('#toast-root'),el=document.createElement('div');el.className='toast'+(isError?' error':'');el.textContent=msg;root.append(el);setTimeout(()=>el.remove(),4000);}
 function currentFilms(){let arr=films.filter(f=>query?true:view==='discover'?f.status!=='watched':view==='all'?true:view==='watchlist'?f.status!=='watched':view==='watched'?f.status==='watched':view==='favorites'?f.favorite:true);
  if(typeFilter!=='all')arr=arr.filter(f=>f.type===typeFilter);
@@ -307,20 +307,30 @@ async function applyImport(){try{if(!jsonPlan||jsonPlan.raw!==$('#json-input').v
  const destructive=jsonPlan.changes.filter(c=>c.op==='delete');if(jsonPlan.mode!=='replace'&&destructive.length&&!confirm(`Questa importazione contiene ${destructive.length} operazioni di eliminazione. Confermi?`))return;
  const n=jsonPlan.next.length,c=jsonPlan.changes.length;await store(jsonPlan.next,`Importazione riuscita: ${c} operazioni applicate, ${n} titoli nel database.`);$('#json-input').value='';jsonPlan=null;preview();closeDialog('json-dialog');
  }catch(e){toast(e.message,true);}}
-function tryCachedPoster(f){return safeUrl(f.poster)||safeUrl(posterCache.get(f.id));}
+function tryCachedPoster(f){return safeUrl(posterCache.get(f.id))||(!posterFailed.has(f.id)&&safeUrl(f.poster));}
 let observer=null;
 function observePosters(){if(observer){observer.disconnect();observer=null;}const nodes=$$('[data-open] .poster-fallback, [data-poster] .poster-fallback');
  const fresh=nodes.filter(el=>{const f=films.find(x=>x.id===el.parentElement.dataset.open||x.id===el.parentElement.dataset.poster);return f&&!tryCachedPoster(f)&&!posterTried.has(f.id);});
  if(!('IntersectionObserver' in window)){fresh.slice(0,15).forEach(el=>queuePoster(el.parentElement.dataset.open||el.parentElement.dataset.poster));return;}
  observer=new IntersectionObserver(entries=>{for(const entry of entries){if(!entry.isIntersecting)continue;const n=entry.target.parentElement, id=n.dataset.open||n.dataset.poster;queuePoster(id);observer.unobserve(entry.target);}}, {rootMargin:'300px'});fresh.forEach(el=>observer.observe(el));}
 function queuePoster(id){if(!id||posterTried.has(id))return;posterTried.add(id);posterQueue.push(id);pumpPosters();}
+window.EmotecaPosterFailed=id=>{
+  if(!/^[a-z0-9-]{1,90}$/.test(id))return;
+  posterFailed.add(id);
+  posterCache.delete(id);
+  if(films.some(f=>f.id===id)){posterTried.delete(id);queuePoster(id);}
+};
 async function pumpPosters(){if(posterActive)return;posterActive=true;while(posterQueue.length){const id=posterQueue.shift(),f=films.find(x=>x.id===id);if(f&&!tryCachedPoster(f)){
   try{const src=await fetchPoster(f);if(src){posterCache.set(id,src);try{localStorage.setItem('afterframe-poster-cache',JSON.stringify(Object.fromEntries(posterCache)));}catch{}
-    $$(`[data-open="${CSS.escape(id)}"], [data-poster="${CSS.escape(id)}"]`).forEach(node=>{if(node.querySelector('.poster-image'))return;const image=document.createElement('img');image.className='poster-image';image.src=src;image.alt='Copertina di '+f.title;image.loading='lazy';image.decoding='async';image.onerror=()=>image.remove();node.appendChild(image);});
+    $$(`[data-open="${CSS.escape(id)}"], [data-poster="${CSS.escape(id)}"]`).forEach(node=>{if(node.querySelector('.poster-image'))return;const image=document.createElement('img');image.className='poster-image';image.src=src;image.alt='Copertina di '+f.title;image.loading='lazy';image.decoding='async';image.width=320;image.height=480;image.onerror=()=>{image.remove();posterFailed.add(id);};node.appendChild(image);});
   }}catch{}
  }await new Promise(r=>setTimeout(r,650));}posterActive=false;}
 function similarity(a,b){const x=normal(a).replace(/[^a-z0-9]/g,''),y=normal(b).replace(/[^a-z0-9]/g,'');if(x===y)return 10;if(x.includes(y)||y.includes(x))return 7;let words=normal(a).split(/\W+/).filter(w=>w.length>3);return words.filter(w=>normal(b).includes(w)).length;}
 async function fetchPoster(f){const term=f.posterQuery||f.title;
+ try{
+   const tmdb=await window.EmotecaExplorer?.posterFor?.(f);
+   if(safeUrl(tmdb))return tmdb;
+ }catch{}
  if(['anime','film-anime'].includes(f.type)){
   try{const r=await fetch(`https://api.jikan.moe/v4/anime?q=${encodeURIComponent(term)}&limit=5`);if(r.ok){const json=await r.json();const data=(json.data||[]).sort((a,b)=>Math.max(similarity(b.title,term),similarity(b.title_english||'',term))-Math.max(similarity(a.title,term),similarity(a.title_english||'',term)));const item=data[0];if(item&&Math.max(similarity(item.title,term),similarity(item.title_english||'',term))>=2){const url=item.images?.jpg?.large_image_url||item.images?.jpg?.image_url;if(safeUrl(url))return url;}}}catch{}
  }
